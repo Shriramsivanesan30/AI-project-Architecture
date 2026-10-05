@@ -1,0 +1,514 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load activity_tags %}
+
+{% block title %}Faculty Self-Appraisal Analysis — MCET{% endblock %}
+{% block topbar_title %}Faculty Self-Appraisal Analysis{% endblock %}
+
+{% block topbar_actions %}
+<div class="no-print flex items-center gap-3">
+    <form method="GET" class="flex items-center gap-2">
+        <select name="year" class="select select-sm select-bordered" onchange="this.form.submit()">
+            {% for yr in academic_years %}
+            <option value="{{ yr }}" {% if yr == academic_year %}selected{% endif %}>{{ yr }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    <button onclick="window.print()" class="btn btn-primary btn-sm">
+        <i class="fas fa-print"></i> Print Report
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<img src="{% static 'images/logo.png' %}" class="print-landmark" alt="Watermark">
+
+<style type="text/css">
+    /* Appraisal Layout Styles */
+    .appraisal-container {
+        max-width: 1100px;
+        margin: 1rem auto;
+        background: white;
+        padding: 3rem 4rem;
+        border-radius: 4px;
+        position: relative;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .appraisal-container::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image: url("{% static 'images/logo.png' %}");
+        background-repeat: no-repeat;
+        background-position: center 30%;
+        background-size: 600px;
+        opacity: 0.035;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .appraisal-container > * { position: relative; z-index: 1; }
+
+    .report-main-header { text-align: center; margin-bottom: 2rem; border-bottom: 3.5px solid #000; padding-bottom: 1.5rem; }
+    .report-main-header .logo-container { background: white; padding: 0; display: inline-block; margin-bottom: 1rem; }
+    .report-main-header img.logo { width: 320px; height: auto; display: block; margin: 0 auto; filter: brightness(1.1) contrast(1.1); mix-blend-mode: multiply; }
+    .report-main-header h1 { margin: 0.4rem 0 0.2rem 0; color: #000; font-size: 2.1rem; text-transform: uppercase; font-weight: 800; letter-spacing: -0.5px; }
+    .report-main-header h2 { margin: 0; color: #444; font-size: 1.3rem; font-weight: 700; }
+
+    .criteria-block { margin-bottom: 3rem; }
+    .major-heading { font-size: 1.4rem; font-weight: 800; color: #000; margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 1.5px solid #000; display: block; padding-bottom: 0.2rem; }
+    .sub-heading { font-size: 1.05rem; font-weight: 700; color: #000; margin-bottom: 1rem; margin-top: 2rem; line-height: 1.2; text-align: left; }
+
+    /* Table Styles - Extreme Precision */
+    .appraisal-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 8.5pt; border: 1.5px solid #000; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }
+    .appraisal-table th, .appraisal-table td { border: 1px solid #000; padding: 4px 6px; text-align: left; word-wrap: break-word; vertical-align: middle; color: #000; }
+    .appraisal-table th { background: #f2f2f2; font-weight: 800; text-align: center; font-size: 8pt; text-transform: uppercase; }
+    .appraisal-table td { line-height: 1.35; }
+    .appraisal-table tr:hover td { background: #fffcf0; }
+    .appraisal-table .total-row { background: #fafafa; font-weight: 800; }
+    .num-col { text-align: center !important; }
+
+    .editable { outline: none; min-height: 1.2em; cursor: text; display: block; width: 100%; }
+    .editable:focus { background: #fffbeb; box-shadow: inset 0 0 0 1px #b45309; }
+
+    /* Summary Table Styles */
+    .summary-table { width: 100%; border-collapse: collapse; margin-top: 1rem; border: 1.5px solid #000; font-size: 9.5pt; }
+    .summary-table th { background: #000; color: white; padding: 0.8rem; text-align: center; border: 1px solid #000; }
+    .summary-table td { padding: 0.8rem; border: 1px solid #000; text-align: center; font-weight: 600; }
+    .summary-table .label-cell { text-align: left; font-weight: 700; padding-left: 1.5rem; width: 40%; }
+    .summary-table .total-bar { background: #f8f8f8; font-weight: 900; }
+
+    .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 2rem; border: 1px solid #ccc; padding: 1.2rem; background: #fff; }
+    .detail-item { display: flex; gap: 0.5rem; }
+    .detail-lbl { min-width: 140px; font-weight: 800; color: #000; font-size: 0.9rem; }
+    .detail-val { font-weight: 600; color: #000; border-bottom: 1px solid #eee; flex: 1; }
+
+    @page { margin: 1cm; size: A4 landscape; }
+    @media print {
+        body { background: white !important; }
+        .appraisal-container { box-shadow: none; margin: 0; padding: 0; width: 100% !important; max-width: none !important; border:none; }
+        .sidebar, .topbar, .no-print, .btn, .no-print-v { display: none !important; }
+        .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+        .appraisal-table { font-size: 8pt; border: 1pt solid #000; }
+        .appraisal-table th, .appraisal-table td { border: 0.5pt solid #000; }
+        
+        /* Landmark Watermark for Every Page */
+        .print-landmark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            opacity: 0.06 !important;
+            z-index: -100; 
+            display: block !important;
+            pointer-events: none;
+        }
+    }
+    .print-landmark { display: none; }
+</style>
+
+<div class="appraisal-container">
+    <div class="no-print-v" style="text-align: right; font-size: 9px; color: #999; margin-bottom: 5px;">Report Instance: v3.3-MULTI-PAGE-WATERMARK &middot; {{ academic_year }}</div>
+    
+    <!-- Header -->
+    <div class="report-main-header">
+        <div class="logo-container">
+            <img src="{% static 'images/logo.png' %}" alt="MCET Logo" class="logo">
+        </div>
+        <h1>Faculty Self-Appraisal Analysis</h1>
+        <h2>Institutional Performance Assessment Record — {{ academic_year }}</h2>
+    </div>
+
+    <!-- Basic Details -->
+    <div class="details-grid">
+        <div class="detail-item"><div class="detail-lbl">Institution:</div><div class="detail-val">Dr. Mahalingam College of Engineering & Technology</div></div>
+        <div class="detail-item"><div class="detail-lbl">Academic Year:</div><div class="detail-val">{{ academic_year }}</div></div>
+        <div class="detail-item"><div class="detail-lbl">Faculty Name:</div><div class="detail-val">{{ user.get_display_name }}</div></div>
+        <div class="detail-item"><div class="detail-lbl">Department:</div><div class="detail-val">{{ user.department }}</div></div>
+        <div class="detail-item"><div class="detail-lbl">Designation:</div><div class="detail-val">{{ user.cadre|default:user.role }}</div></div>
+        <div class="detail-item"><div class="detail-lbl">Staff ID:</div><div class="detail-val">{{ user.username }}</div></div>
+    </div>
+
+    <!-- 2. Research and Development -->
+    <div class="criteria-block">
+        <h2 class="major-heading">Section 2: Research and Development</h2>
+
+        <!-- 2.1 Journal -->
+        <h3 class="sub-heading">2.1 Details of Journal Publications</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">S.No</th>
+                    <th style="width: 150px;">Name of authors</th>
+                    <th>Title of Paper</th>
+                    <th style="width: 150px;">Name of the Journal</th>
+                    <th style="width: 140px;">Vol.No./Issue/Page/DOI</th>
+                    <th style="width: 80px;">Month/Year</th>
+                    <th style="width: 80px;">Indexing</th>
+                    <th style="width: 60px;">Impact</th>
+                    <th style="width: 50px;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s21.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_authors }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_venue }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_others }}</div></td>
+                    <td class="num-col"><div class="editable" contenteditable="true">{{ act.display_month_year }}</div></td>
+                    <td class="num-col"><div class="editable" contenteditable="true">{{ act.display_indexing }}</div></td>
+                    <td class="num-col"><div class="editable" contenteditable="true">{{ act.data_json|get_item:'Impact Factor'|default:'-' }}</div></td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="8" style="text-align:right;">Total Criterion 2.1 Score</td>
+                    <td class="num-col">{{ section_scores.s21|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 2.2 Research Publications -->
+        <h3 class="sub-heading">2.2 Details of Indexed Book Chapter/ Book/Conference Publications</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">S.No</th>
+                    <th style="width: 150px;">Authors</th>
+                    <th>Book / Conference Article Name</th>
+                    <th style="width: 150px;">Book Chapter Title</th>
+                    <th style="width: 80px;">Year/Month</th>
+                    <th style="width: 140px;">Publ./Org. & ISSN/ISBN</th>
+                    <th style="width: 100px;">Page No / DOI</th>
+                    <th style="width: 80px;">Indexing</th>
+                    <th style="width: 50px;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s22.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_authors }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.data_json|get_item:'Title of the Book Chapter'|default:'-' }}</div></td>
+                    <td class="num-col">{{ act.display_month_year }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_venue }} / {{ act.data_json|get_item:'ISBN of the Book'|default:act.data_json|get_item:'ISBN of Conference Proceeding' }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_others }}</div></td>
+                    <td class="num-col">{{ act.display_indexing }}</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="8" style="text-align:right;">Total Criterion 2.2 Score</td>
+                    <td class="num-col">{{ section_scores.s22|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 2.3 IPR -->
+        <h3 class="sub-heading">2.3 Details of IPR (Patent/Design/Copyright/Trademark)</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">S.No</th>
+                    <th style="width: 100px;">IPR Type</th>
+                    <th style="width: 150px;">Applicant(s) Name</th>
+                    <th>Title of Invention</th>
+                    <th style="width: 130px;">IPR Number</th>
+                    <th style="width: 100px;">Date</th>
+                    <th style="width: 80px;">Status</th>
+                    <th style="width: 50px;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s23.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.data_json|get_item:'Type of Patent' }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_authors }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_others }}</div></td>
+                    <td class="num-col">{{ act.display_month_year }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Status' }}</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="7" style="text-align:right;">Total Criterion 2.3 Score</td>
+                    <td class="num-col">{{ section_scores.s23|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 2.4 Research Projects -->
+        <h3 class="sub-heading">2.4 Research Project Granted/Submitted</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">S.No</th>
+                    <th style="width: 150px;">List of Investigators</th>
+                    <th>R&D Project Title</th>
+                    <th style="width: 150px;">Sponsoring Agency & Scheme</th>
+                    <th style="width: 100px;">Month & Year</th>
+                    <th style="width: 80px;">Duration</th>
+                    <th style="width: 110px;">Funds Received</th>
+                    <th style="width: 80px;">Status</th>
+                    <th style="width: 50px;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s24.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_authors }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_venue }}</div></td>
+                    <td class="num-col">{{ act.display_month_year }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Duration of the Project' }}</td>
+                    <td class="num-col">₹ {{ act.data_json|get_item:'Total Funds Provided (INR in Lakhs)' }}L</td>
+                    <td class="num-col">Ongoing</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="8" style="text-align:right;">Total Criterion 2.4 Score</td>
+                    <td class="num-col">{{ section_scores.s24|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+         <!-- 2.5 Consultancy -->
+         <h3 class="sub-heading">2.5 Details of Consultancy work</h3>
+         <table class="appraisal-table">
+             <thead>
+                 <tr>
+                     <th style="width: 40px;">S.No</th>
+                     <th style="width: 150px;">Faculty Team</th>
+                     <th>Consultancy Project Name</th>
+                     <th style="width: 100px;">Type</th>
+                     <th style="width: 150px;">Consulting Agency</th>
+                     <th style="width: 80px;">Year</th>
+                     <th style="width: 100px;">Revenue (Lakhs)</th>
+                     <th style="width: 80px;">Status</th>
+                     <th style="width: 50px;">Score</th>
+                 </tr>
+             </thead>
+             <tbody>
+                 {% for act in sections.s25.items %}
+                 <tr>
+                     <td class="num-col">{{ forloop.counter }}</td>
+                     <td><div class="editable" contenteditable="true">{{ act.display_authors }}</div></td>
+                     <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                     <td class="num-col">{{ act.data_json|get_item:'Type of Program'|default:'Project' }}</td>
+                     <td><div class="editable" contenteditable="true">{{ act.display_venue }}</div></td>
+                     <td class="num-col">{{ act.created_at|date:"Y" }}</td>
+                     <td class="num-col">₹ {{ act.data_json|get_item:'Revenue Generated (INR in Lakhs)' }}L</td>
+                     <td class="num-col">Completed</td>
+                     <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                 </tr>
+                 {% empty %}
+                 <tr><td colspan="9" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                 {% endfor %}
+                 <tr class="total-row">
+                     <td colspan="8" style="text-align:right;">Total Criterion 2.5 Score</td>
+                     <td class="num-col">{{ section_scores.s25|floatformat:0 }}</td>
+                 </tr>
+             </tbody>
+         </table>
+
+         <!-- Summary of R&D -->
+         <h3 class="sub-heading" style="margin-top:2.5rem; text-decoration: underline;">Summary of Research and Development</h3>
+         <table class="summary-table">
+             <thead>
+                 <tr>
+                     <th style="width:10%;">Sl.No</th>
+                     <th>Particulars</th>
+                     <th style="width:25%;">Maximum Score</th>
+                     <th style="width:15%;">Self-Score</th>
+                     <th style="width:20%;">HoD Verification</th>
+                 </tr>
+             </thead>
+             <tbody>
+                 <tr><td>2.1</td><td class="label-cell">Journal Publications</td><td rowspan="6">No maximum limit for criteria 2.1 to 2.6 however total marks should not exceed 100</td><td>{{ section_scores.s21 }}</td><td contenteditable="true"></td></tr>
+                 <tr><td>2.2</td><td class="label-cell">Book Chapter/Book/Conference</td><td>{{ section_scores.s22 }}</td><td contenteditable="true"></td></tr>
+                 <tr><td>2.3</td><td class="label-cell">IPR (Patents/Copyrights)</td><td>{{ section_scores.s23 }}</td><td contenteditable="true"></td></tr>
+                 <tr><td>2.4</td><td class="label-cell">Research Project Granted</td><td>{{ section_scores.s24 }}</td><td contenteditable="true"></td></tr>
+                 <tr><td>2.5</td><td class="label-cell">Consultancy work</td><td>{{ section_scores.s25 }}</td><td contenteditable="true"></td></tr>
+                 <tr><td>2.6</td><td class="label-cell">Supervisor and Scholars</td><td>{{ section_scores.s26 }}</td><td contenteditable="true"></td></tr>
+                 <tr class="total-bar"><td colspan="3" style="text-align:right;">Total Score for Category-2 (A)</td><td>{{ total_r_and_d|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+                 <tr class="total-bar" style="background: #eff6ff; border: 2px solid #000;"><td colspan="3" style="text-align:right; font-size:1.1rem;">Category Score Reduced to 30% (A * 0.3)</td><td style="font-size:1.1rem;">{{ reduced_r_and_d|floatformat:1 }}</td><td contenteditable="true"></td></tr>
+             </tbody>
+         </table>
+    </div>
+
+    <!-- 3. Professional Development -->
+    <div class="criteria-block" style="page-break-before: always;">
+        <h2 class="major-heading">Section 3: Professional Development Activities</h2>
+
+        <!-- 3.1 STTP -->
+        <h3 class="sub-heading">3.1 STTP/FDP/Seminar/Workshop/Conference attended</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 40px;">S.No</th>
+                    <th rowspan="2" style="width: 120px;">Type of Event</th>
+                    <th rowspan="2" style="width: 220px;">Topic of the Event</th>
+                    <th rowspan="2">Organized by / Venue</th>
+                    <th colspan="2">Duration</th>
+                    <th rowspan="2" style="width: 120px;">Outcome / Certificate</th>
+                    <th rowspan="2" style="width: 60px;">Score</th>
+                </tr>
+                <tr>
+                    <th style="width: 90px;">From</th>
+                    <th style="width: 90px;">To</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s31.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Programme Type' }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_venue }}</div></td>
+                    <td class="num-col">{{ act.data_json|get_item:'Duration From (DD-MM-YYYY)' }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Duration To (DD-MM-YYYY)' }}</td>
+                    <td class="num-col">Participated</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="7" style="text-align:right;">Total Criterion 3.1 Score</td>
+                    <td class="num-col">{{ section_scores.s31|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 3.2 Events Organized -->
+        <h3 class="sub-heading">3.2 Events Organized (Organizers Only)</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width: 35px;">Sl</th>
+                    <th rowspan="2" style="width: 110px;">Event Type</th>
+                    <th rowspan="2" style="width: 80px;">Role</th>
+                    <th rowspan="2">Program Title / Topic</th>
+                    <th rowspan="2" style="width: 70px;">Level</th>
+                    <th rowspan="2" style="width: 70px;">Funding</th>
+                    <th colspan="2">Duration</th>
+                    <th colspan="3">Participants Count</th>
+                    <th rowspan="2" style="width: 50px;">Score</th>
+                </tr>
+                <tr>
+                    <th>From</th>
+                    <th>To</th>
+                    <th style="width: 45px;">Inst.</th>
+                    <th style="width: 45px;">Acad.</th>
+                    <th style="width: 45px;">Ind.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s32.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Event Type' }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Your Role'|default:act.data_json|get_item:'Coordinator Name' }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }}</div></td>
+                    <td class="num-col">{{ act.data_json|get_item:'Level' }}</td>
+                    <td class="num-col">Internal</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Date From'|default:act.data_json|get_item:'Date From (DD-MM-YYYY)' }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Date To'|default:'-' }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'num_participants'|default:act.data_json|get_item:'internal_participants' }}</td>
+                    <td class="num-col">-</td>
+                    <td class="num-col">-</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="12" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="11" style="text-align:right;">Total Criterion 3.2 Score</td>
+                    <td class="num-col">{{ section_scores.s32|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 3.3 Online Course -->
+        <h3 class="sub-heading">3.3 Online Course Completed with Proctored Exams (NPTEL/Coursera etc.)</h3>
+        <table class="appraisal-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">S.No</th>
+                    <th>Course Name & Certification Platform</th>
+                    <th style="width: 100px;">Duration (Wks)</th>
+                    <th style="width: 150px;">Period (Academic Year)</th>
+                    <th style="width: 120px;">Percentage / Medal</th>
+                    <th style="width: 150px;">Awarding Body</th>
+                    <th style="width: 50px;">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in sections.s33.items %}
+                <tr>
+                    <td class="num-col">{{ forloop.counter }}</td>
+                    <td><div class="editable" contenteditable="true">{{ act.display_title }} ({{ act.data_json|get_item:'Platform' }})</div></td>
+                    <td class="num-col">{{ act.data_json|get_item:'Duration in Weeks' }}</td>
+                    <td class="num-col">{{ act.academic_year }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Recognition (Elite/Gold/Silver/% of Marks)' }}</td>
+                    <td class="num-col">{{ act.data_json|get_item:'Platform' }}</td>
+                    <td class="num-col"><strong>{{ act.awarded_points|floatformat:0 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center; color:#999; font-style:italic;">NIL</td></tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="6" style="text-align:right;">Total Criterion 3.3 Score</td>
+                    <td class="num-col">{{ section_scores.s33|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Summary of Category 3 -->
+        <h3 class="sub-heading" style="margin-top:2rem; text-decoration: underline;">Summary of Professional Development Activities</h3>
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th style="width:10%;">Sl.No</th>
+                    <th>Particulars</th>
+                    <th style="width:25%;">Maximum Score</th>
+                    <th style="width:15%;">Self-Score</th>
+                    <th style="width:20%;">HoD Verification</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>3.1</td><td class="label-cell">STTP/FDP/Seminars Attended</td><td rowspan="4">Total marks should not exceed 100</td><td>{{ section_scores.s31|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+                <tr><td>3.2</td><td class="label-cell">Events Organized</td><td>{{ section_scores.s32|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+                <tr><td>3.3</td><td class="label-cell">Online Courses Completed</td><td>{{ section_scores.s33|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+                <tr><td>3.4</td><td class="label-cell">Resource PersonTalks</td><td>{{ section_scores.s34|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+                <tr class="total-bar" style="background: #eff6ff; border: 2px solid #000;"><td colspan="3" style="text-align:right; font-size:1.1rem;">Total Score for Category-3 (B)</td><td style="font-size:1.1rem;">{{ total_prof_dev|floatformat:0 }}</td><td contenteditable="true"></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Signatures -->
+    <div style="margin-top: 5rem; display: flex; justify-content: space-between; padding: 0 2rem;">
+        <div style="text-align: center; border-top: 1.5px solid #000; width: 220px; padding-top: 0.5rem; font-weight: 800;">Signature of Faculty</div>
+        <div style="text-align: center; border-top: 1.5px solid #000; width: 220px; padding-top: 0.5rem; font-weight: 800;">HoD Verification</div>
+        <div style="text-align: center; border-top: 1.5px solid #000; width: 220px; padding-top: 0.5rem; font-weight: 800;">IQAC Coordinator</div>
+    </div>
+
+</div>
+{% endblock %}

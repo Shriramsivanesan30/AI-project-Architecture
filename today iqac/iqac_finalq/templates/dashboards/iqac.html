@@ -1,0 +1,533 @@
+{% extends 'base.html' %}
+{% load activity_tags %}
+{% block title %}IQAC Dashboard — MCET{% endblock %}
+{% block topbar_title %}IQAC Analytics Dashboard{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex; gap:0.5rem;">
+  <button id="btn-view-summary" class="btn btn-outline btn-sm">
+    <i class="fas fa-chart-line"></i> View Summary
+  </button>
+  <a href="{% url 'export_activities' %}" class="btn btn-primary btn-sm">
+    <i class="fas fa-file-excel"></i> Export All Departments
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">Home / <span>IQAC Dashboard</span></div>
+  <h1>Institution-wide Activity Overview</h1>
+  <p>Manage and monitor all departments — 12 departments across 3 activity categories</p>
+</div>
+
+<style>
+  @keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(234, 88, 12, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
+  }
+  .dept-dot-card:hover { transform: translateY(-3px); border-color: var(--orange-500); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+  .dept-dot-active { background: #fff7ed !important; border-color: var(--orange-500) !important; }
+  .dot-base { position:absolute; top:8px; right:8px; width:10px; height:10px; border-radius:50%; }
+  .dot-alert { background:#ea580c; box-shadow:0 0 8px rgba(234,88,12,0.6); animation: pulse 2s infinite; }
+  .dot-normal { background:#cbd5e1; }
+  .chart-card { background: var(--bg-light); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+  .chart-card .chart-container { position: relative; width: 100%; max-height: 260px; }
+  .chart-card h3 { font-size: 0.85rem; margin-bottom: 0.75rem; color: var(--text-main); }
+</style>
+
+<!-- Compact Stat Cards (clickable) -->
+<div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <button data-filter="all" id="filter-all" class="stat-pill active-pill">
+    <span class="pill-icon" style="background:#fff3e0;">📋</span>
+    <span class="pill-val">{{ analytics.total }}</span>
+    <span class="pill-label">Total Activities</span>
+  </button>
+  <button data-filter="pending" id="filter-pending" class="stat-pill">
+    <span class="pill-icon" style="background:#fffde7;">⏳</span>
+    <span class="pill-val" style="color:#d97706;">{{ analytics.pending }}</span>
+    <span class="pill-label">Pending</span>
+  </button>
+  <button data-filter="approved" id="filter-approved" class="stat-pill">
+    <span class="pill-icon" style="background:#f0fdf4;">🏆</span>
+    <span class="pill-val" style="color:#16a34a;">{{ analytics.approved }}</span>
+    <span class="pill-label">IQAC Approved</span>
+  </button>
+  <button data-filter="rejected" id="filter-rejected" class="stat-pill">
+    <span class="pill-icon" style="background:#fff1f2;">❌</span>
+    <span class="pill-val" style="color:#dc2626;">{{ analytics.rejected }}</span>
+    <span class="pill-label">Rejected</span>
+  </button>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>Activity Count by Category</h3>
+    <div class="chart-container" style="height:220px;">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Approval Status Distribution</h3>
+    <div class="chart-container" style="height:220px;">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header"><div class="card-title">Activity Count by Department</div></div>
+  <div class="card-body">
+    <div style="position:relative; width:100%; height:200px;">
+      <canvas id="deptChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Institutional Target Progress -->
+<div id="targets" class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="card-title">Institutional Target Progress — {{ academic_years.0 }}</div>
+      <div class="card-subtitle">Achieved vs Institutional Targets</div>
+    </div>
+    <button id="btn-set-new-target" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Set New Target</button>
+  </div>
+  <div class="card-body">
+    <div id="target-form" style="display:none; background:var(--bg-light); padding:1.5rem; border-radius:12px; margin-bottom:1.5rem; border:1px solid var(--border);">
+      <h4 style="margin-bottom:1rem;">Define Department Target</h4>
+      <form method="POST" action="{% url 'set_department_target' %}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; align-items:end;">
+        {% csrf_token %}
+        <div>
+          <label>Department</label>
+          <select name="dept" required>
+            {% for code, name in departments %}
+            <option value="{{ code }}">{{ code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Activity Sheet</label>
+          <select name="sheet" required>
+            {% for sheet in all_sheets %}
+            <option value="{{ sheet }}">{{ sheet }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Academic Year</label>
+          <input type="text" value="2025-2026" disabled style="background:var(--bg);">
+          <input type="hidden" name="year" value="2025-2026">
+        </div>
+        <div>
+          <label>Target Count</label>
+          <input type="number" name="count" min="1" value="10" required style="width:100px;">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Target</button>
+      </form>
+      <style>
+        .btn-point { padding: .4rem .8rem; border-radius: 20px; border: 1.5px solid #F5C4B0; background: #FDE8E0; color: #E8420A; font-weight: 700; font-size: .8rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .btn-point:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(232,66,10,0.15); }
+        .btn-point.active { background: #E8420A; color: #fff; border-color: #E8420A; transform: scale(1.05); }
+      </style>
+      <script nonce="{{ request.csp_nonce }}">
+        document.querySelectorAll('.btn-point').forEach(btn => {
+          btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-point').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('iqac_points').value = this.dataset.val;
+          });
+        });
+      </script>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; padding-top:1rem;">
+      {% for t in target_progress %}
+      <div class="target-compact-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.5rem;">
+          <span style="font-weight:700; font-size:.82rem; color:var(--text-main); line-height:1.3;">{{ t.dept }} — {{ t.sheet_name|truncatechars:18 }}</span>
+          {% if t.gap == 0 %}
+          <span style="font-size:.78rem; font-weight:800; color:#16a34a; white-space:nowrap; margin-left:.5rem;">{{ t.pct }}%</span>
+          {% else %}
+          <span style="font-size:.78rem; font-weight:800; color:var(--orange-500); white-space:nowrap; margin-left:.5rem;">{{ t.pct }}%</span>
+          {% endif %}
+        </div>
+        <div style="height:7px; background:#e2e8f0; border-radius:4px; margin-bottom:.6rem; overflow:hidden;">
+          <div class="tbar" data-pct="{{ t.pct }}" style="height:100%; border-radius:4px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:.72rem;">
+          <span style="color:var(--text-muted); font-weight:600;">{{ t.achieved }}<span style="opacity:.5;">/{{ t.target }}</span></span>
+          <div style="display:flex; gap:.35rem; align-items:center;">
+            {% if t.gap == 0 %}
+            <span style="background:#dcfce7; color:#15803d; padding:.15rem .45rem; border-radius:20px; font-weight:700;">✓ Done</span>
+            {% else %}
+            <span style="background:#fff3e0; color:#c2410c; padding:.15rem .45rem; border-radius:20px; font-weight:700;">Need {{ t.gap }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Pending IQAC Reviews (HOD Approved items) -->
+<div class="card" id="pending-reviews">
+  <div class="card-header">
+    <div class="card-title">⏳ Activities Pending IQAC Approval</div>
+    <div class="card-subtitle">HOD verified activities requiring your final sign-off</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Dept</th><th>Faculty</th><th>Sheet</th><th>Title</th><th>Acad. Year</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for act in pending_iqac %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><span class="badge" style="background:var(--orange-100);color:var(--orange-500);">{{ act.department }}</span></td>
+          <td><strong>{{ act.faculty.get_display_name }}</strong></td>
+          <td><strong>{{ act.sheet_name }}</strong></td>
+          <td>{{ act.title|truncatechars:35 }}</td>
+          <td>{{ act.academic_year }}</td>
+          <td>
+            <div style="display:flex;justify-content:flex-start;">
+              <a href="{% url 'activity_detail' act.id %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-search"></i> Review & Approve
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <i class="fas fa-check-double"></i>
+              <h3>All caught up!</h3>
+              <p>No activities are waiting for IQAC approval at the moment.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Department Dots Grid (Moved below approvals) -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:.75rem; margin-bottom:2rem; margin-top:2rem;">
+  {% for d in dept_stats %}
+  <a href="?dept={{ d.code }}#pending-reviews" class="dept-dot-card {% if dept_filter == d.code %}dept-dot-active{% endif %}" style="text-decoration:none; position:relative; background:#fff; border:1.5px solid {% if dept_filter == d.code %}var(--orange-500){% else %}#e2e8f0{% endif %}; padding:.75rem .5rem; border-radius:10px; text-align:center; transition:all .2s ease; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+    <span class="dot-base {% if d.pending_count > 0 %}dot-alert{% else %}dot-normal{% endif %}"></span>
+    <span style="font-weight:800; font-size:1.1rem; color:var(--text-dark); margin-bottom:2px;">{{ d.code }}</span>
+    <span style="font-size:0.55rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:block; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.name }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Consolidation Matrix Section -->
+<div id="consolidation" class="card fade-in" style="display:none; margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="card-title">Institutional Consolidation Sheet — AY {{ academic_years.0 }}</div>
+      <div class="card-subtitle">Real-time NAAC Audit Metric Mapping</div>
+    </div>
+    <a href="{% url 'export_activities' %}" class="btn btn-outline btn-sm"><i class="fas fa-file-excel"></i> Export All (Excel)</a>
+  </div>
+  <div class="card-body">
+    <div class="table-wrap" style="max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+      <table style="font-size: 0.8rem; border-collapse: separate; border-spacing: 0;">
+        <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 1px 0 var(--border);">
+          <tr>
+            <th style="min-width: 150px; background: inherit; border-bottom: 1px solid var(--border);">Criteria</th>
+            <th style="min-width: 300px; background: inherit; text-align: left; border-bottom: 1px solid var(--border);">Metric Parameters</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q1</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q2</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q3</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q4</th>
+            <th style="text-align:center; background:#fffcf2; border-bottom: 1px solid var(--border); font-weight:700;">Total Achieved</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in consolidation_rows %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="background:#f1f5f9; font-weight:700; color:#475569; position: sticky; left: 0; z-index: 5;">{{ row.Criteria }}</td>
+            <td style="text-align: left; padding-left: 1rem;">{{ row|get_item:'Key Metric Parameters' }}</td>
+            <td style="text-align:center;">{{ row.Q1|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q2|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q3|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q4|default:"0" }}</td>
+            <td style="text-align:center; background:#fffcf2; font-weight:700; color:#b45309;">{{ row|get_item:'Total Program Count'|default:"0" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <form method="GET" action="{% url 'dashboard' %}" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;width:100%;">
+    <div>
+      <label>Department</label>
+      <select name="dept">
+        <option value="">All Departments</option>
+        {% for code, name in departments %}
+        <option value="{{ code }}" {% if dept_filter == code %}selected{% endif %}>{{ code }} — {{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Sheet</label>
+      <select name="sheet">
+        <option value="">All Sheets</option>
+        {% for sheet in all_sheets %}
+        <option value="{{ sheet }}" {% if sheet_filter == sheet %}selected{% endif %}>{{ sheet }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Status</label>
+      <select name="status">
+        <option value="">All Statuses</option>
+        <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+        <option value="HOD_APPROVED" {% if status_filter == 'HOD_APPROVED' %}selected{% endif %}>HOD Approved</option>
+        <option value="IQAC_APPROVED" {% if status_filter == 'IQAC_APPROVED' %}selected{% endif %}>IQAC Approved</option>
+        <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% if dept_filter %}
+    <a href="{% url 'export_activities' %}?dept={{ dept_filter }}" class="btn btn-outline btn-sm" style="margin-left:auto;">
+      <i class="fas fa-download"></i> Export {{ dept_filter }}
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Activities Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Activities
+      {% if dept_filter or sheet_filter or status_filter %}
+      <span style="font-size:.78rem;font-weight:400;color:var(--orange-500);">
+        (Filtered: {{ activities|length }} records)
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Dept</th><th>Faculty</th><th>Category</th><th>Sheet</th><th>Title</th><th>Year</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="activity-tbody">
+        {% for act in activities %}
+        <tr data-status="{{ act.status }}">
+          <td>{{ forloop.counter }}</td>
+          <td><span class="badge" style="background:var(--orange-100);color:var(--orange-500);">{{ act.department }}</span></td>
+          <td>{{ act.faculty.get_display_name }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ act.category }}</td>
+          <td><strong>{{ act.sheet_name }}</strong></td>
+          <td>{{ act.title|truncatechars:30 }}</td>
+          <td>{{ act.academic_year }}</td>
+          <td><span class="badge badge-{{ act.status|lower }}">{{ act.get_status_icon }} {{ act.status }}</span></td>
+          <td>
+            <div style="display:flex; gap:.4rem;">
+              <a href="{% url 'activity_detail' act.id %}" class="btn btn-outline btn-sm" title="Review Activity">
+                <i class="fas fa-eye text-orange"></i> Preview
+              </a>
+              <a href="{% url 'activity_detail' act.id %}?print=1" class="btn btn-outline btn-sm" title="Print Activity Report">
+                <i class="fas fa-print"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9">
+          <div class="empty-state">
+            <i class="fas fa-search"></i>
+            <h3>No activities found</h3>
+            <p>Try adjusting your filters.</p>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ request.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ analytics.cat_labels|json_script:"cat-labels" }}
+{{ analytics.cat_counts|json_script:"cat-counts" }}
+{{ analytics.status_labels|json_script:"status-labels" }}
+{{ analytics.status_counts|json_script:"status-counts" }}
+{{ analytics.dept_labels|json_script:"dept-labels" }}
+{{ analytics.dept_counts|json_script:"dept-counts" }}
+
+<style>
+  .stat-pill {
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--bg-white); border: 1.5px solid var(--border);
+    border-radius: 50px; padding: .45rem .9rem .45rem .5rem;
+    cursor: pointer; transition: all .2s ease; text-align: left;
+    box-shadow: var(--shadow-sm); font-family: inherit;
+  }
+  .stat-pill:hover { border-color: var(--orange-400); box-shadow: 0 2px 10px rgba(232,66,10,.12); transform: translateY(-1px); }
+  .active-pill { border-color: var(--orange-500) !important; background: #fff7ed !important; }
+  .pill-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
+  .pill-val { font-size:1rem; font-weight:800; color:var(--text-main); line-height:1; }
+  .pill-label { font-size:.7rem; font-weight:600; color:var(--text-muted); white-space: nowrap; }
+
+  .target-compact-card {
+    display: flex; flex-direction: column;
+    background: var(--bg-white); border: 1px solid var(--border);
+    border-radius: 12px; padding: .8rem 1rem;
+    text-decoration: none; transition: all .2s ease;
+    box-shadow: var(--shadow-sm); cursor: default;
+  }
+  .target-compact-card:hover {
+    border-color: var(--orange-400); box-shadow: 0 4px 12px rgba(232,66,10,.12); transform: translateY(-2px);
+  }
+</style>
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tbar').forEach(function(bar) {
+    var pct = parseInt(bar.getAttribute('data-pct') || 0);
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : 'var(--orange-500)';
+  });
+});
+
+const STATUS_MAP = {
+  'pending':  ['PENDING', 'OD_PENDING', 'OD_SPOC_APPROVED', 'OD_APPROVED', 'SPOC_APPROVED', 'HOD_APPROVED'],
+  'approved': ['IQAC_APPROVED'],
+  'rejected': ['REJECTED']
+};
+
+function filterTable(filter) {
+  const tbody = document.getElementById('activity-tbody');
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll('tr[data-status]');
+  rows.forEach(row => {
+    const st = row.getAttribute('data-status');
+    const show = filter === 'all' || (STATUS_MAP[filter] && STATUS_MAP[filter].includes(st));
+    row.style.display = show ? '' : 'none';
+  });
+
+  ['all','pending','approved','rejected'].forEach(f => {
+    const pill = document.getElementById('filter-' + f);
+    if (pill) pill.classList.toggle('active-pill', f === filter);
+  });
+
+  if (filter !== 'all') {
+    const card = tbody.closest('.card');
+    if(card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function toggleTargetForm() {
+  const el = document.getElementById('target-form');
+  if(el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+// Attach event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  const btnSummary = document.getElementById('btn-view-summary');
+  if(btnSummary) btnSummary.addEventListener('click', () => { if(window.toggleMetrics) window.toggleMetrics(); });
+
+  const btnSetTarget = document.getElementById('btn-set-new-target');
+  if(btnSetTarget) btnSetTarget.addEventListener('click', toggleTargetForm);
+
+  document.querySelectorAll('.stat-pill[data-filter]').forEach(pill => {
+    pill.addEventListener('click', function() {
+      filterTable(this.getAttribute('data-filter'));
+    });
+  });
+
+  const autoOpenMetrics = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openMetrics') === '1') {
+      setTimeout(() => { if (typeof toggleMetrics === 'function') toggleMetrics(); }, 300);
+    }
+  };
+  autoOpenMetrics();
+});
+
+const cLabels = JSON.parse(document.getElementById('cat-labels').textContent);
+const cCounts = JSON.parse(document.getElementById('cat-counts').textContent);
+const sLabels = JSON.parse(document.getElementById('status-labels').textContent);
+const sCounts = JSON.parse(document.getElementById('status-counts').textContent);
+const dLabels = JSON.parse(document.getElementById('dept-labels').textContent);
+const dCounts = JSON.parse(document.getElementById('dept-counts').textContent);
+
+const orangePalette = ['#E8420A','#F05A28','#FF7A45','#FFA07A','#FFB699','#FFC8AA','#8B6355','#5C4033','#3D2B1F','#2E1B0E','#A0522D'];
+
+new Chart(document.getElementById('categoryChart'), {
+  type: 'bar',
+  data: {
+    labels: cLabels,
+    datasets: [{
+      label: 'Activities',
+      data: cCounts,
+      backgroundColor: ['#E8420A','#5C4033','#F05A28'],
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: sLabels,
+    datasets: [{
+      data: sCounts,
+      backgroundColor: ['#fbbf24','#3b82f6','#7c3aed','#16a34a','#dc2626'],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+    cutout: '65%'
+  }
+});
+
+new Chart(document.getElementById('deptChart'), {
+  type: 'bar',
+  data: {
+    labels: dLabels,
+    datasets: [{
+      label: 'Activities',
+      data: dCounts,
+      backgroundColor: orangePalette,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

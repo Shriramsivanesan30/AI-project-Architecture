@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+{% load activity_tags %}
+{% block title %}{{ user.role }} View — MCET{% endblock %}
+{% block topbar_title %}{{ user.role }} View{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'switch_role' 'FACULTY' %}" class="btn btn-outline btn-sm" style="margin-right:0.5rem; border-color:var(--border); color:var(--text-muted);">
+  <i class="fas fa-user"></i> My Faculty View
+</a>
+<button data-click="toggleMetrics" class="btn btn-outline btn-sm"><i class="fas fa-chart-line"></i> View Summary</button>
+{% if user.role == 'HOD' %}
+<a href="{% url 'export_activities' %}?dept={{ user.department }}" class="btn btn-outline btn-sm"><i class="fas fa-file-excel"></i> Export {{ user.department }}</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">Home / <span>Approval Dashboard</span></div>
+  <h1>{{ user.role }} View</h1>
+  <p><strong>{{ dept_obj.name|default:user.department }}</strong> ({{ user.department }}) — Review and approve submitted activities</p>
+</div>
+
+<!-- Compact Stat Cards (clickable) -->
+<div style="display:flex; gap:.75rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <button data-filter="all" id="filter-all" class="stat-pill active-pill">
+    <span class="pill-icon" style="background:#fff3e0;">📋</span>
+    <span class="pill-val">{{ analytics.total }}</span>
+    <span class="pill-label">Total in Dept</span>
+  </button>
+  <button data-filter="pending" id="filter-pending" class="stat-pill">
+    <span class="pill-icon" style="background:#fffde7;">⏳</span>
+    <span class="pill-val" style="color:#d97706;">{{ pending_activities|length }}</span>
+    <span class="pill-label">Pending Action</span>
+  </button>
+  <button data-filter="approved" id="filter-approved" class="stat-pill">
+    <span class="pill-icon" style="background:#f0fdf4;">🏆</span>
+    <span class="pill-val" style="color:#16a34a;">{{ analytics.approved }}</span>
+    <span class="pill-label">Approved</span>
+  </button>
+  <button data-filter="rejected" id="filter-rejected" class="stat-pill">
+    <span class="pill-icon" style="background:#fff1f2;">❌</span>
+    <span class="pill-val" style="color:#dc2626;">{{ analytics.rejected|default:"0" }}</span>
+    <span class="pill-label">Rejected</span>
+  </button>
+</div>
+
+
+<!-- Target Progress (HOD View) -->
+{% if active_role == 'HOD' or active_role == 'SPOC' %}
+<div id="targets" class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="card-title">Department Target Progress</div>
+      <div class="card-subtitle">Achieving goals set by IQAC</div>
+    </div>
+    {% if active_role == 'HOD' %}
+    <button id="btn-assign-target" class="btn btn-primary btn-sm"><i class="fas fa-user-plus"></i> Assign Faculty Target</button>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div id="faculty-target-form"
+      style="display:none; background:var(--bg-light); padding:1.5rem; border-radius:12px; margin-bottom:1.5rem; border:1px solid var(--border);">
+      <h4 style="margin-bottom:1rem;">Assign Target to Faculty</h4>
+      <form method="POST" action="{% url 'set_faculty_target' %}" id="faculty-target-form-tag"
+        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; align-items:end;">
+        {% csrf_token %}
+        <div>
+          <label>Faculty Member</label>
+          <select name="faculty_id" required>
+            {% for f in faculty_list %}
+            <option value="{{ f.id }}">{{ f.get_display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Activity Sheet</label>
+          <select name="sheet" required>
+            {% for sheet in iqac_fixed_sheets %}
+            <option value="{{ sheet }}">{{ sheet }}</option>
+            {% empty %}
+            <option value="" disabled>— No IQAC Targets Fixed Yet —</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Academic Year</label>
+          <input type="text" value="2025-2026" disabled style="background:var(--bg);">
+          <input type="hidden" name="year" value="2025-2026">
+        </div>
+        <div>
+          <label>Target Count</label>
+          <input type="number" name="count" min="1" value="5" required style="width:100px;">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Assignment</button>
+      </form>
+    </div>
+
+    <!-- Dynamic Target Container -->
+    <div id="dynamic-target-container">
+        {% include 'dashboards/target_fragment.html' %}
+    </div>
+
+    <script nonce="{{ request.csp_nonce }}">
+      function toggleCompletedTargets() {
+        const area = document.getElementById('completed-targets-area');
+        if (area) area.style.display = 'block';
+      }
+
+      window.addEventListener('load', function() {
+        if (window.location.hash === '#completed-targets-area') {
+          setTimeout(() => {
+            toggleCompletedTargets();
+            document.getElementById('completed-targets-area').scrollIntoView({ behavior: 'smooth' });
+          }, 500);
+        }
+      });
+    </script>
+  </div>
+</div>
+
+<!-- Consolidation Matrix Section -->
+<div id="consolidation" class="card fade-in" style="display:none; margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="card-title">{{ user.department }} Consolidation Summary</div>
+      <div class="card-subtitle">Detailed Metric Breakdown for your department</div>
+    </div>
+    <a href="{% url 'export_activities' %}?dept={{ user.department }}" class="btn btn-outline btn-sm"><i class="fas fa-file-excel"></i> Export {{ user.department }}</a>
+  </div>
+  <div class="card-body">
+    <div class="table-wrap"
+      style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+      <table style="font-size: 0.8rem; border-collapse: separate; border-spacing: 0;">
+        <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 1px 0 var(--border);">
+          <tr>
+            <th style="min-width: 120px; background: inherit; border-bottom: 1px solid var(--border);">Criteria</th>
+            <th style="min-width: 250px; background: inherit; text-align: left; border-bottom: 1px solid var(--border);">Metric Parameters</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q1</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q2</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q3</th>
+            <th style="text-align:center; border-bottom: 1px solid var(--border);">Q4</th>
+            <th style="text-align:center; background:#fffcf2; border-bottom: 1px solid var(--border);">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in consolidation_rows %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="background:#f1f5f9; font-weight:700; color:#475569; position: sticky; left: 0; z-index: 5;">{{ row.Criteria }}</td>
+            <td style="text-align: left; padding-left: 1rem;">{{ row|get_item:'Key Metric Parameters' }}</td>
+            <td style="text-align:center;">{{ row.Q1|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q2|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q3|default:"0" }}</td>
+            <td style="text-align:center;">{{ row.Q4|default:"0" }}</td>
+            <td style="text-align:center; background:#fffcf2; font-weight:700; color:#b45309;">{{ row|get_item:'Total Program Count'|default:"0" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Pending Approvals (Requirement: Compact Boxes) -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <div class="card-title">⏳ Pending Approvals</div>
+    <div class="card-subtitle">Review and authorize submissions from your department</div>
+  </div>
+  <div class="card-body">
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.2rem;">
+      {% for act in pending_activities %}
+      <div class="activity-compact-box" style="background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:1.2rem; display:flex; flex-direction:column; gap:0.75rem; transition:all 0.2s ease; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div style="width:36px; height:36px; background:var(--orange-100); color:var(--orange-500); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem;">
+              {{ act.faculty.get_display_name|first|upper }}
+            </div>
+            <div>
+              <div style="font-weight:800; color:var(--text-dark); font-size:0.9rem; line-height:1.2;">{{ act.faculty.get_display_name }}</div>
+              <div style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">{{ act.created_at|date:"d M Y" }}</div>
+            </div>
+          </div>
+          <span class="badge" style="background:var(--bg-light); color:var(--text-muted); font-size:0.6rem; text-transform:uppercase;">#{{ act.id }}</span>
+        </div>
+
+        <div style="padding:.5rem 0;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--orange-500); margin-bottom:2px; text-transform:uppercase; letter-spacing:0.5px;">{{ act.sheet_name }}</div>
+          <div style="font-weight:700; color:var(--text-main); font-size:0.85rem; line-height:1.4; height:2.8rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+            {{ act.title|default:"No Title Provided" }}
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:0.5rem; border-top:1px solid #f1f5f9;">
+          <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">
+            <i class="fas {% if act.category == 'Research' %}fa-flask{% elif act.category == 'Faculty Development' %}fa-graduation-cap{% else %}fa-users{% endif %}" style="margin-right:4px;"></i>
+            {{ act.category }}
+          </span>
+          <a href="{% url 'activity_detail' act.id %}" class="btn btn-primary btn-sm" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">
+            Review <i class="fas fa-chevron-right" style="font-size:0.6rem; margin-left:4px;"></i>
+          </a>
+        </div>
+      </div>
+      {% empty %}
+      <div style="grid-column: 1 / -1;">
+        <div class="empty-state" style="padding: 3rem;">
+          <i class="fas fa-check-double"></i>
+          <h3>All caught up!</h3>
+          <p>No activities pending your approval.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .activity-compact-box:hover {
+    transform: translateY(-4px);
+    border-color: var(--orange-400);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  }
+</style>
+
+<!-- All Activities History -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📋 All Department Activities</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Faculty</th>
+          <th>Category</th>
+          <th>Sheet</th>
+          <th>Year</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="activity-tbody">
+        {% for act in all_activities %}
+        <tr data-status="{{ act.status }}">
+          <td>{{ forloop.counter }}</td>
+          <td>{{ act.faculty.get_display_name }}</td>
+          <td>{{ act.category }}</td>
+          <td><a href="{% url 'activity_detail' act.id %}" style="color:var(--orange-500);">{{ act.sheet_name }}</a>
+          </td>
+          <td>{{ act.academic_year }}</td>
+          <td><span class="badge badge-{{ act.status|lower }}">{{ act.get_status_icon }} {{ act.status }}</span></td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ act.updated_at|date:"d M Y" }}</td>
+          <td>
+            <div style="display:flex; gap:.4rem;">
+              <a href="{% url 'activity_detail' act.id %}" class="btn btn-outline btn-sm" title="Preview">
+                <i class="fas fa-eye text-orange"></i>
+              </a>
+              <a href="{% url 'activity_detail' act.id %}?print=1" class="btn btn-outline btn-sm" title="Print">
+                <i class="fas fa-print"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align:center;">No activities found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Rename Department Modal -->
+<div id="renameDeptModal" class="modal" style="display:none; position:fixed; z-index:100; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background:#fff; margin:15% auto; padding:2rem; border-radius:12px; width:400px; position:relative;">
+        <span id="close-rename-modal" style="position:absolute; right:1rem; top:0.5rem; font-size:1.5rem; cursor:pointer;">&times;</span>
+        <h3 style="margin-bottom:1.5rem; color:var(--text-main);">Rename Department</h3>
+        <form method="POST" action="{% url 'update_department_name' %}">
+            {% csrf_token %}
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; margin-bottom:.5rem; font-weight:600;">Current Name:</label>
+                <div style="padding:.75rem; background:#f1f5f9; border-radius:8px; color:var(--text-muted);">{{ dept_obj.name|default:user.department }}</div>
+            </div>
+            <div style="margin-bottom:2rem;">
+                <label style="display:block; margin-bottom:.5rem; font-weight:600;">New Department Name:</label>
+                <input type="text" name="name" placeholder="Enter new name" required style="width:100%; padding:.75rem; border:1.5px solid var(--border); border-radius:8px;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Update Name</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .btn-point-hod { padding: .4rem .8rem; border-radius: 20px; border: 1.5px solid #F5C4B0; background: #FDE8E0; color: #E8420A; font-weight: 700; font-size: .8rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .btn-point-hod:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(232,66,10,0.15); }
+  .btn-point-hod.active { background: #E8420A; color: #fff; border-color: #E8420A; transform: scale(1.05); }
+
+  .stat-pill {
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--bg-white); border: 1.5px solid var(--border);
+    border-radius: 50px; padding: .45rem .9rem .45rem .5rem;
+    cursor: pointer; transition: all .2s ease; text-align: left;
+    box-shadow: var(--shadow-sm); font-family: inherit;
+  }
+  .stat-pill:hover { border-color: var(--orange-400); box-shadow: 0 2px 10px rgba(232,66,10,.12); transform: translateY(-1px); }
+  .active-pill { border-color: var(--orange-500) !important; background: #fff7ed !important; }
+  .pill-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
+  .pill-val { font-size:1rem; font-weight:800; color:var(--text-main); line-height:1; }
+  .pill-label { font-size:.7rem; font-weight:600; color:var(--text-muted); white-space: nowrap; }
+
+  .target-compact-card {
+    display: flex; flex-direction: column;
+    background: var(--bg-white); border: 1px solid var(--border);
+    border-radius: 12px; padding: .8rem 1rem;
+    text-decoration: none; transition: all .2s ease;
+    box-shadow: var(--shadow-sm); cursor: default;
+  }
+  .target-compact-card:hover {
+    border-color: var(--orange-400); box-shadow: 0 4px 12px rgba(232,66,10,.12); transform: translateY(-2px);
+  }
+</style>
+<script nonce="{{ request.csp_nonce }}">
+  function colorBars() {
+    document.querySelectorAll('.tbar').forEach(function(bar) {
+      var pct = parseInt(bar.getAttribute('data-pct') || 0);
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : 'var(--orange-500)';
+    });
+  }
+  colorBars();
+
+  const STATUS_MAP = {
+    'pending':  ['PENDING', 'OD_PENDING', 'OD_SPOC_APPROVED', 'OD_APPROVED', 'SPOC_APPROVED', 'HOD_APPROVED'],
+    'approved': ['IQAC_APPROVED', 'DEAN_APPROVED'],
+    'rejected': ['REJECTED']
+  };
+
+  function filterTable(filter) {
+    const tbody = document.getElementById('activity-tbody');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr[data-status]');
+    rows.forEach(row => {
+      const st = row.getAttribute('data-status');
+      const show = filter === 'all' || (STATUS_MAP[filter] && STATUS_MAP[filter].includes(st));
+      row.style.display = show ? '' : 'none';
+    });
+
+    ['all','pending','approved','rejected'].forEach(f => {
+      const pill = document.getElementById('filter-' + f);
+      if (pill) pill.classList.toggle('active-pill', f === filter);
+    });
+
+    if (filter !== 'all') {
+      const card = tbody.closest('.card');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function openTargetFor(sheetName) {
+    const form = document.getElementById('faculty-target-form');
+    const select = form.querySelector('select[name="sheet"]');
+    
+    // Show form if hidden
+    form.style.display = 'block';
+    
+    // Set the sheet value
+    select.value = sheetName;
+    
+    // Scroll to form
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function toggleFacultyTargetForm() {
+    const el = document.getElementById('faculty-target-form');
+    if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  // Attach event listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnAssign = document.getElementById('btn-assign-target');
+    if (btnAssign) btnAssign.addEventListener('click', toggleFacultyTargetForm);
+
+    const btnCloseRename = document.getElementById('close-rename-modal');
+    if (btnCloseRename) btnCloseRename.addEventListener('click', () => {
+      const modal = document.getElementById('renameDeptModal');
+      if (modal) modal.style.display = 'none';
+    });
+
+    document.querySelectorAll('.stat-pill[data-filter]').forEach(pill => {
+      pill.addEventListener('click', function() {
+        filterTable(this.getAttribute('data-filter'));
+      });
+    });
+
+    const autoOpenMetrics = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('openMetrics') === '1') {
+        setTimeout(() => { if (typeof toggleMetrics === 'function') toggleMetrics(); }, 300);
+      }
+    };
+    autoOpenMetrics();
+  });
+
+  // Real-time target polling
+  function pollTargets() {
+      fetch("{% url 'get_target_html' %}")
+          .then(r => r.text())
+          .then(html => {
+              const container = document.getElementById('dynamic-target-container');
+              if (container) {
+                container.innerHTML = html;
+                colorBars();
+              }
+          })
+          .catch(e => console.error("Polling error:", e));
+  }
+  setInterval(pollTargets, 5000);
+</script>
+{% endblock %}

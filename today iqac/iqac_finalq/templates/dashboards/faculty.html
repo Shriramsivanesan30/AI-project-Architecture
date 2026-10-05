@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% block title %}Faculty Dashboard — MCET{% endblock %}
+{% block topbar_title %}Faculty Dashboard{% endblock %}
+{% block topbar_actions %}
+{% if user.role == 'DEAN_RI' %}
+<a href="{% url 'switch_role' 'DEAN_RI' %}" class="btn btn-outline btn-sm" style="margin-right:0.5rem; border-color:var(--border); color:var(--text-muted);">
+  <i class="fas fa-user-shield"></i> Open Dean View
+</a>
+{% elif user.role in 'HOD,SPOC,PC' %}
+<a href="{% url 'switch_role' user.role %}" class="btn btn-outline btn-sm" style="margin-right:0.5rem; border-color:var(--border); color:var(--text-muted);">
+  <i class="fas fa-user-shield"></i> Open {{ user.role }} View
+</a>
+{% endif %}
+<a href="{% url 'submit_activity' %}" class="btn btn-primary btn-sm">
+  <i class="fas fa-plus"></i> New Submission
+</a>
+
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+  <div>
+    <div class="breadcrumb">Home / <span>Dashboard</span></div>
+    <h1>My Activity Dashboard</h1>
+    <p>{{ user.department }} Department &middot; {{ user.role }}</p>
+  </div>
+  <div class="points-badge-large" style="background:var(--bg-white); border:2px solid #fbbf24; padding:.6rem 1rem; border-radius:14px; display:flex; align-items:center; gap:.6rem; box-shadow:var(--shadow-sm); margin-bottom:1.5rem;">
+    <div style="width:34px; height:34px; background:#fef3c7; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1rem;">🏆</div>
+    <div>
+      <div style="font-size:.65rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:.05em;">Achievement</div>
+      <div style="font-size:1.25rem; font-weight:900; color:#b45309; line-height:1;"><span id="dashboard-total-points">{{ user.get_total_points|floatformat:1 }}</span> <span style="font-size:.75rem; font-weight:600;">PTS</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Compact Stat Cards (clickable) ── -->
+<div style="display:flex; gap:.75rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <button data-filter="all" id="filter-all" class="stat-pill active-pill">
+    <span class="pill-icon" style="background:#fff3e0;">📋</span>
+    <span class="pill-val">{{ stats.total }}</span>
+    <span class="pill-label">All</span>
+  </button>
+  <button data-filter="pending" id="filter-pending" class="stat-pill">
+    <span class="pill-icon" style="background:#fffde7;">⏳</span>
+    <span class="pill-val" style="color:#d97706;">{{ stats.pending }}</span>
+    <span class="pill-label">Pending</span>
+  </button>
+  <button data-filter="approved" id="filter-approved" class="stat-pill">
+    <span class="pill-icon" style="background:#f0fdf4;">🏆</span>
+    <span class="pill-val" style="color:#16a34a;">{{ stats.approved }}</span>
+    <span class="pill-label">Approved</span>
+  </button>
+  <button data-filter="rejected" id="filter-rejected" class="stat-pill">
+    <span class="pill-icon" style="background:#fff1f2;">❌</span>
+    <span class="pill-val" style="color:#dc2626;">{{ stats.rejected }}</span>
+    <span class="pill-label">Rejected</span>
+  </button>
+</div>
+
+<style>
+.stat-pill {
+  display: flex; align-items: center; gap: .5rem;
+  background: var(--bg-white); border: 1.5px solid var(--border);
+  border-radius: 50px; padding: .45rem .9rem .45rem .5rem;
+  cursor: pointer; transition: all .2s ease; text-align: left;
+  box-shadow: var(--shadow-sm); font-family: inherit;
+}
+.stat-pill:hover { border-color: var(--orange-400); box-shadow: 0 2px 10px rgba(232,66,10,.12); transform: translateY(-1px); }
+.active-pill { border-color: var(--orange-500) !important; background: #fff7ed !important; }
+.pill-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
+.pill-val { font-size:1rem; font-weight:800; color:var(--text-main); line-height:1; }
+.pill-label { font-size:.7rem; font-weight:600; color:var(--text-muted); white-space: nowrap; }
+
+/* Compact target cards */
+.target-row {
+  display: flex; align-items: center; gap: .75rem;
+  background: var(--bg-light); border: 1px solid var(--border);
+  border-radius: 10px; padding: .6rem 1rem;
+  transition: all .2s ease; text-decoration: none;
+}
+.target-row:hover { border-color: var(--orange-400); background: #fff; box-shadow: 0 2px 10px rgba(232,66,10,.09); }
+
+.target-compact-card {
+  display: flex; flex-direction: column;
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: 12px; padding: .8rem 1rem;
+  text-decoration: none; transition: all .2s ease;
+  box-shadow: var(--shadow-sm);
+}
+.target-compact-card:hover {
+  border-color: var(--orange-400); box-shadow: 0 4px 12px rgba(232,66,10,.12); transform: translateY(-2px);
+}
+
+.target-bar-wrap { flex: 1; }
+.target-bar-bg { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: .25rem; }
+</style>
+
+
+
+<!-- ── Active Targets ── -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header" style="padding-bottom:.5rem;">
+    <div class="card-title" style="font-size:.95rem;">My Targets</div>
+    <div class="card-subtitle">Showing pending and completed targets (Auto-updates)</div>
+  </div>
+  <div id="dynamic-target-container" style="padding:1rem;">
+    {% include 'dashboards/target_fragment.html' %}
+  </div>
+</div>
+
+
+<!-- ── Activity Table ── -->
+<div class="card" id="activity-table-card">
+  <div class="card-header">
+    <div>
+      <div class="card-title" id="table-title">All Submissions</div>
+      <div class="card-subtitle" id="table-subtitle">All your submitted activities</div>
+    </div>
+    <button id="clear-filter-btn" style="font-size:.72rem; background:none; border:none; color:var(--orange-500); cursor:pointer; font-weight:700; display:none;">⟵ Show All</button>
+  </div>
+  <div class="table-wrap">
+    <table id="activity-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Category</th>
+          <th>Sheet</th>
+          <th>Title</th>
+          <th>Year</th>
+          <th>Status</th>
+          <th>Remarks</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="activity-tbody">
+        {% for act in activities %}
+        <tr data-status="{{ act.status }}">
+          <td>{{ forloop.counter }}</td>
+          <td>{{ act.category }}</td>
+          <td><strong>{{ act.sheet_name }}</strong></td>
+          <td>{{ act.title|truncatechars:40 }}</td>
+          <td>{{ act.academic_year }}</td>
+          <td>
+            {% if act.status == 'DEAN_APPROVED' %}
+            <span class="badge badge-approved" style="background:#e0f2fe; color:#0369a1;"><i class="fas fa-check-circle"></i> Approved by Dean R&D</span>
+            {% else %}
+            <span class="badge badge-{{ act.status|lower }}">{{ act.get_status_icon }} {{ act.status|title }}</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);font-size:.8rem;">{{ act.remarks|default:"—" }}</td>
+          <td>
+            <div style="display:flex; gap:.4rem;">
+              <a href="{% url 'activity_detail' act.id %}" class="btn btn-outline btn-sm" title="Preview"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'activity_detail' act.id %}?print=1" class="btn btn-outline btn-sm" title="Print"><i class="fas fa-print"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="empty-row">
+          <td colspan="8">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>No submissions yet</h3>
+              <p>Click <strong>New Submission</strong> to add your first activity.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ request.csp_nonce }}">
+  // ── Table filter by stat pill ──────────────────────────────
+  const STATUS_MAP = {
+    'pending':  ['PENDING', 'OD_PENDING', 'OD_SPOC_APPROVED', 'OD_APPROVED', 'SPOC_APPROVED', 'HOD_APPROVED'],
+    'approved': ['IQAC_APPROVED', 'DEAN_APPROVED'],
+    'rejected': ['REJECTED']
+  };
+  const LABELS = {
+    'all':      ['All Submissions', 'All your submitted activities'],
+    'pending':  ['Pending Activities', 'Activities awaiting review'],
+    'approved': ['Approved Activities', 'IQAC approved submissions'],
+    'rejected': ['Rejected Activities', 'Activities that were rejected']
+  };
+
+  function filterTable(filter) {
+    const rows = document.querySelectorAll('#activity-tbody tr[data-status]');
+    rows.forEach(row => {
+      const st = row.getAttribute('data-status');
+      const show = filter === 'all' || (STATUS_MAP[filter] && STATUS_MAP[filter].includes(st));
+      row.style.display = show ? '' : 'none';
+    });
+    const [title, sub] = LABELS[filter] || LABELS['all'];
+    const titleEl = document.getElementById('table-title');
+    const subEl = document.getElementById('table-subtitle');
+    const clearBtn = document.getElementById('clear-filter-btn');
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) subEl.textContent = sub;
+    if (clearBtn) clearBtn.style.display = filter === 'all' ? 'none' : 'inline';
+    
+    ['all','pending','approved','rejected'].forEach(f => {
+      const pill = document.getElementById('filter-' + f);
+      if (pill) pill.classList.toggle('active-pill', f === filter);
+    });
+    if (filter !== 'all') {
+      const card = document.getElementById('activity-table-card');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Attach event listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.stat-pill[data-filter]').forEach(pill => {
+      pill.addEventListener('click', function() {
+        filterTable(this.getAttribute('data-filter'));
+      });
+    });
+
+    const clearBtn = document.getElementById('clear-filter-btn');
+    if (clearBtn) clearBtn.addEventListener('click', () => filterTable('all'));
+  });
+
+  // ── Completed targets toggle ───────────────────────────────
+  function toggleCompleted() {
+    const body = document.getElementById('completed-targets-body');
+    const chevron = document.getElementById('completed-chevron');
+    if (!body) return;
+    const open = body.style.display === 'grid';
+    body.style.display = open ? 'none' : 'grid';
+    chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+  }
+
+  // ── Auto-expand completed if hash ─────────────────────────
+  if (window.location.hash === '#completed-targets') {
+    const body = document.getElementById('completed-targets-body');
+    if (body) { body.style.display = 'grid'; document.getElementById('completed-chevron').style.transform = 'rotate(180deg)'; }
+    setTimeout(() => document.getElementById('completed-targets')?.scrollIntoView({ behavior:'smooth' }), 300);
+  }
+
+
+
+  // Trigger login point animation if new things were approved
+  window.addEventListener('load', () => {
+    const rawPoints = "{{ anim_points|default:'0' }}";
+    const points = parseFloat(rawPoints) || 0;
+    
+    if (points > 0) {
+      // Display label — show decimal only when needed
+      const ptsLabel = Number.isInteger(points) ? points : points.toFixed(1);
+      // Scale coin count by points magnitude (min 8, max 35)
+      const coinCount = Math.min(35, Math.max(8, Math.ceil(points / 5)));
+
+      function localToss(x, y, amount, ptsDisplay) {
+          const coinEmoji = '🪙';
+          // Metallic sound generator
+          const playMetallicSound = () => {
+              try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
+              } catch(e) {}
+          };
+
+          for (let i = 0; i < amount; i++) {
+              setTimeout(() => {
+                  const coin = document.createElement('div');
+                  coin.innerHTML = coinEmoji;
+                  coin.style.cssText = `position:fixed;left:${x}px;top:${y}px;font-size:2rem;z-index:100000;pointer-events:none;`;
+                  document.body.appendChild(coin);
+                  
+                  // Physics: Random angle and velocity
+                  const angle = (Math.random() * Math.PI * 2) - Math.PI;
+                  const velocity = 10 + Math.random() * 14;
+                  let vx = Math.cos(angle) * (velocity * 0.6);
+                  let vy = Math.sin(angle) * velocity - 6; // initial upward boost
+                  let currX = x, currY = y, rot = 0, op = 1;
+                  
+                  if (i % 4 === 0) playMetallicSound();
+
+                  function animCoin() {
+                      currX += vx; currY += vy; vy += 0.9; rot += 18; op -= 0.014;
+                      coin.style.transform = `translate(${currX - x}px,${currY - y}px) rotate(${rot}deg)`;
+                      coin.style.opacity = op;
+                      if (op > 0) requestAnimationFrame(animCoin); else coin.remove();
+                  }
+                  requestAnimationFrame(animCoin);
+              }, i * 45);
+          }
+          
+          // Central achievement banner
+          const m = document.createElement('div');
+          m.innerHTML = `<div style="background:white;padding:14px 28px;border-radius:50px;box-shadow:0 15px 35px rgba(251,191,36,0.45);border:4px solid #FBBF24;font-weight:900;font-size:2.6rem;color:#B45309;text-align:center;white-space:nowrap;">
+              <div style="font-size:0.95rem;opacity:0.65;letter-spacing:.08em;margin-bottom:2px;">🏆 NEW ACHIEVEMENT!</div>
+              +${ptsDisplay} PTS EARNED!
+          </div>`;
+          m.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100001;pointer-events:none;';
+          document.body.appendChild(m);
+          m.animate([
+              {transform:'translate(-50%,-50%) scale(0.4)', opacity:0}, 
+              {transform:'translate(-50%,-58%) scale(1.08)', opacity:1, offset:0.35}, 
+              {transform:'translate(-50%,-105%) scale(0.9)', opacity:0}
+          ], {duration:3200, easing:'cubic-bezier(0.34,1.56,0.64,1)', fill:'forwards'}).onfinish = () => m.remove();
+      }
+
+      const badge = document.querySelector('.points-badge-large');
+      let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+      if (badge) {
+        const rect = badge.getBoundingClientRect();
+        startX = rect.left + rect.width / 2;
+        startY = rect.top + rect.height / 2;
+      }
+      setTimeout(() => { localToss(startX, startY, coinCount, ptsLabel); }, 800);
+    }
+  });
+
+  // Color progress bars helper
+  function colorBars() {
+    document.querySelectorAll('.tbar').forEach(function(bar) {
+      var pct = parseInt(bar.getAttribute('data-pct') || 0);
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : 'var(--orange-500)';
+    });
+  }
+
+  // Real-time target polling
+  function pollTargets() {
+      fetch("{% url 'get_target_html' %}")
+          .then(r => r.text())
+          .then(html => {
+              const container = document.getElementById('dynamic-target-container');
+              if (container) {
+                container.innerHTML = html;
+                colorBars();
+              }
+          })
+          .catch(e => console.error("Polling error:", e));
+  }
+  // Initial quick poll + color bars immediately
+  colorBars();
+  setInterval(pollTargets, 5000);
+</script>
+{% endblock %}

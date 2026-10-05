@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load activity_tags %}
+
+{% block title %}Department Exports — MCET{% endblock %}
+{% block topbar_title %}Department-wise Data Exports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">Home / <span>Export Reports</span> / <span>Department Exports</span></div>
+  <h1>Department-wise Data Exports</h1>
+  <p>Generate and download independent Excel reports for institutional departments</p>
+</div>
+
+<!-- Department-wise Reports Card -->
+<div class="card" style="margin-bottom:1.5rem; border: none; background: linear-gradient(135deg, #ffffff 0%, #fff9f5 100%);">
+  <div class="card-header" style="background: transparent; border-bottom: 1px solid rgba(232, 66, 10, 0.1); padding: 1.25rem 1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div class="card-title" style="color: #e8420a; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem;">
+          <div style="background: #e8420a; color: white; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+            <i class="fas fa-file-excel"></i>
+          </div>
+          Institutional Department Data
+        </div>
+        <div class="card-subtitle">Each report contains all IQAC approved activities for the specific department</div>
+      </div>
+      <div class="badge" style="background: rgba(232, 66, 10, 0.1); color: #e8420a; border: 1px solid rgba(232, 66, 10, 0.2); padding: 0.5rem 1rem;">
+        <i class="fas fa-university me-1"></i> 12 Departments
+      </div>
+    </div>
+  </div>
+  <div class="card-body" style="padding: 1.5rem;">
+    <div class="dept-grid">
+      {% for code, name in departments %}
+      <a href="{% url 'export_activities' %}?dept={{ code }}" class="premium-export-btn" title="Download {{ name }} Report">
+        <div class="btn-top">
+          <span class="dept-code">{{ code }}</span>
+          <div class="download-icon"><i class="fas fa-arrow-down"></i></div>
+        </div>
+        <div class="dept-fullname">{{ name|truncatechars:24 }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem;
+  }
+  
+  .premium-export-btn {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  
+  .btn-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .dept-code {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.5px;
+  }
+  
+  .download-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f8fafc;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+  }
+  
+  .dept-fullname {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  
+  .premium-export-btn:hover {
+    border-color: #e8420a;
+    background: #ffffff;
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px -5px rgba(232, 66, 10, 0.15);
+  }
+  
+  .premium-export-btn:hover .download-icon {
+    background: #e8420a;
+    color: #ffffff;
+    transform: rotate(-10deg) scale(1.1);
+  }
+  
+  .premium-export-btn:hover .dept-code {
+    color: #e8420a;
+  }
+</style>
+{% endblock %}

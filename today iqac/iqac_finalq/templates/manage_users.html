@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Faculty — MCET{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Add User Column -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold d-flex align-items-center">
+                    <i class="fas fa-user-plus me-4 text-primary"></i> Register New Faculty
+                </h5>
+            </div>
+            <div class="card-body pt-3">
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_user">
+                    
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label small fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">Full Name</label>
+                        <input type="text" name="full_name" class="form-control" placeholder="Dr." required style="border-radius: 8px; max-width: 350px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label small fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">ID</label>
+                        <input type="text" name="username" class="form-control" placeholder="123" required style="border-radius: 8px; max-width: 200px;">
+                        <div class="form-text mt-2" style="font-size: 0.75rem; color: #64748b;">This will be the login username.</div>
+                    </div>
+
+                    {% if request.user.role == 'IQAC' %}
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label small fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">Department</label>
+                        <select name="department" class="form-select" required style="border-radius: 8px; max-width: 350px;">
+                            {% for code, name in depts_list %}
+                            <option value="{{ code }}">{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="department" value="{{ request.user.department }}">
+                    {% endif %}
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label small fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">Academic Cadre</label>
+                        <select name="cadre" class="form-select" required style="border-radius: 8px; max-width: 350px;">
+                            <option value="Professor">Professor</option>
+                            <option value="Associate Professor">Associate Professor</option>
+                            <option value="Assistant professor(SG)">Assistant professor(SG)</option>
+                            <option value="Assistant Professor (SS)">Assistant Professor (SS)</option>
+                            <option value="Assistant Professor">Assistant Professor</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label small fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">Default Password</label>
+                        <input type="text" class="form-control" value="mcet@1234" disabled style="background:#f8f9fa; border-radius: 8px; max-width: 350px;">
+                        <div class="form-text mt-2" style="font-size: 0.75rem; color: #64748b;">Password is fixed at <strong>mcet@1234</strong>.</div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary fw-bold py-2" style="background: #e8420a; border-color: #e8420a; border-radius: 8px; width: 350px;">
+                            <i class="fas fa-save me-2"></i> REGISTER FACULTY
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users List Column -->
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold d-flex align-items-center">
+                    <i class="fas fa-users-cog me-4 text-primary"></i> Existing Users
+                </h5>
+                {% if request.user.role == 'IQAC' %}
+                <form method="GET" class="d-flex gap-2">
+                    <select name="dept" class="form-select form-select-sm" style="width: 200px;" onchange="this.form.submit()">
+                        <option value="">All Departments</option>
+                        {% for d in depts %}
+                        <option value="{{ d.code }}" {% if dept_filter == d.code %}selected{% endif %}>{{ d.code }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if dept_filter %}
+                    <a href="{% url 'manage_users' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+                    {% endif %}
+                </form>
+                {% else %}
+                <span class="badge bg-primary">Department: {{ request.user.department }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 750px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light position-sticky top-0 sticky-top" style="z-index: 10;">
+                            <tr>
+                                <th>ID</th>
+                                <th>Full Name</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% regroup users_list by department as users_by_dept %}
+                            {% for dept_group in users_by_dept %}
+                            <tr>
+                                <td colspan="3" class="px-0 py-0 border-0">
+                                    <div style="background: linear-gradient(90deg, #f1f5f9 0%, #ffffff 100%); padding: 0.85rem 1.25rem; border-left: 5px solid #1e293b; margin: 0.5rem 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                        <h6 class="mb-0 fw-800 text-dark d-flex align-items-center gap-2" style="letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.9rem;">
+                                            <i class="fas fa-university" style="color:#1e293b;"></i>
+                                            {{ dept_group.grouper }} DEPARTMENT
+                                            <span class="badge rounded-pill bg-white text-dark border ms-auto" style="font-size: 0.7rem; font-weight: 700; padding: 0.35rem 0.65rem;">
+                                                {{ dept_group.list|length }} Total
+                                            </span>
+                                        </h6>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            {% regroup dept_group.list by cadre as cadre_groups %}
+                            {% for cadre_group in cadre_groups %}
+                            <tr style="border:none;">
+                                <td colspan="3" class="px-3 py-3" style="background: transparent; border:none;">
+                                    <div style="background: #fff5f2; border: 1px solid rgba(232, 66, 10, 0.1); border-radius: 8px; padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                        <i class="fas fa-id-card" style="color: #e8420a; font-size: 0.8rem;"></i>
+                                        <span class="fw-800 text-dark" style="font-size: 0.75rem; letter-spacing: 1.2px; text-transform: uppercase;">
+                                            {{ cadre_group.grouper|default:"Institutional Staff" }}
+                                        </span>
+                                        <span class="ms-auto badge rounded-pill" style="background: rgba(232, 66, 10, 0.1); color: #e8420a; font-size: 0.65rem; border: 1px solid rgba(232, 66, 10, 0.2);">
+                                            {{ cadre_group.list|length }} Members
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% for u in cadre_group.list %}
+                            <tr>
+                                <td><span class="fw-medium text-muted small">{{ u.username }}</span></td>
+                                <td>
+                                    <a href="{% url 'faculty_profile' u.username %}" class="text-decoration-none fw-bold text-dark">
+                                        {{ u.get_display_name }}
+                                    </a>
+                                </td>
+                                <td class="text-end">
+                                    <div style="display:flex; gap:.4rem; justify-content: flex-end;">
+                                        {% if request.user.role in 'HOD,SPOC,PC,IQAC' %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="resetPassword('{{ u.username }}', '{{ u.full_name }}')" title="Restart Password (mcrd1234)">
+                                            <i class="fas fa-sync-alt"></i> Restart
+                                        </button>
+                                        <form method="POST" onsubmit="return confirm('Are you sure you want to delete faculty {{ u.full_name }}?');" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <input type="hidden" name="username" value="{{ u.username }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Faculty">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                        {% elif request.user.role == 'IQAC' and u.role != 'IQAC' %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="resetPassword('{{ u.username }}', '{{ u.full_name }}')" title="Restart Password (mcrd1234)">
+                                            <i class="fas fa-sync-alt"></i> Restart
+                                        </button>
+                                        <form method="POST" onsubmit="return confirm('Are you sure you want to delete {{ u.full_name }}?');" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <input type="hidden" name="username" value="{{ u.username }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete User">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-5 text-muted">
+                                    <i class="fas fa-search d-block mb-3 fs-3 opacity-25"></i>
+                                    No users found in this section.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ request.csp_nonce }}">
+function resetPassword(username, fullName) {
+    if (confirm(`Are you sure you want to RESTART the password for ${fullName}? It will be reset to "mcet@1234".`)) {
+        fetch(`/reset-password/${username}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('An error occurred.');
+        });
+    }
+}
+</script>
+{% endblock %}

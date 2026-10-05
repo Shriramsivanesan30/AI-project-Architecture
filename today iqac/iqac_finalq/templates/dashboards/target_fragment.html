@@ -1,0 +1,102 @@
+{% if active_role == 'HOD' or active_role == 'SPOC' %}
+    <!-- Institutional Targets (IQAC) -->
+    {% if active_iqac %}
+    <h5 style="margin: 1.5rem 0 0.75rem 0; color: var(--blue-700); border-left: 4px solid var(--blue-500); padding-left: 0.75rem; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Institutional Targets (IQAC)</h5>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:0.75rem; padding-bottom:1.5rem;">
+      {% for t in target_progress %}
+        {% if t.category != 'Research' and t.gap > 0 %}
+        <div class="target-compact-card" data-click="openTargetFor" data-arg="{{ t.sheet_name }}" style="cursor: pointer; padding: 0.8rem 1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.5rem;">
+            <span style="font-weight:700; font-size:.82rem; color:var(--text-main); line-height:1.2; height:1.8rem; overflow:hidden;">{{ t.sheet_name|truncatechars:35 }}</span>
+            <span style="font-size:.8rem; font-weight:800; color:{% if t.gap == 0 %}#16a34a{% else %}var(--orange-500){% endif %}; white-space:nowrap; margin-left:.5rem;">{{ t.pct }}%</span>
+          </div>
+          <div style="height:7px; background:#e2e8f0; border-radius:4px; margin-bottom:.6rem; overflow:hidden;">
+            <div class="tbar" data-pct="{{ t.pct }}" style="width:{{ t.pct }}%; height:100%; border-radius:4px; background:var(--orange-500);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:.72rem;">
+            <span style="color:var(--text-muted); font-weight:600;">{{ t.achieved }}<span style="opacity:.5;">/{{ t.target }}</span></span>
+            <div style="display:flex; gap:.35rem; align-items:center;">
+              <span style="background:#fff3e0; color:#c2410c; padding:.15rem .45rem; border-radius:20px; font-weight:700;">Need {{ t.gap }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Research Targets Section -->
+    {% if active_res %}
+    <h5 style="margin: 0.5rem 0 0.75rem 0; color: #e8420a; border-left: 4px solid #e8420a; padding-left: 0.75rem; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Research Targets (Dean R&I)</h5>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:0.75rem; padding-bottom:1rem;">
+      {% for t in target_progress %}
+        {% if t.category == 'Research' and t.gap > 0 %}
+        <div class="target-compact-card" data-click="openTargetFor" data-arg="{{ t.sheet_name }}" style="cursor: pointer; padding: 0.8rem 1rem; border-bottom: 2px solid #e8420a;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.5rem;">
+            <span style="font-weight:700; font-size:.82rem; color:var(--text-main); line-height:1.2; height:1.8rem; overflow:hidden;">{{ t.sheet_name|truncatechars:35 }}</span>
+            <span style="font-size:.8rem; font-weight:800; color:#e8420a; white-space:nowrap; margin-left:.5rem;">{{ t.pct }}%</span>
+          </div>
+          <div style="height:7px; background:#e2e8f0; border-radius:4px; margin-bottom:.6rem; overflow:hidden;">
+            <div class="tbar" data-pct="{{ t.pct }}" style="height:100%; width:{{ t.pct }}%; border-radius:4px; background: #e8420a !important;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:.72rem;">
+            <span style="color:var(--text-muted); font-weight:600;">{{ t.achieved }}<span style="opacity:.5;">/{{ t.target }}</span></span>
+            <div style="display:flex; gap:.35rem; align-items:center;">
+              <span style="background:#fdf4ff; color:#701a75; padding:.15rem .45rem; border-radius:20px; font-weight:700;">Need {{ t.gap }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Completed Targets Section -->
+    <div style="margin-top: 1.5rem;">
+      <div id="completed-targets-area" style="{% if any_completed %}display:block;{% else %}display:none;{% endif %} margin-top:1.5rem; background:#f8fafc; padding:1.5rem; border-radius:12px; border:1px solid #e2e8f0; border-top: 4px solid #1b5e20;">
+          <h5 style="margin-bottom:1.5rem; color:#1b5e20; font-weight:800; display:flex; align-items:center; gap:0.5rem; font-size:1rem;">
+             <i class="fas fa-check-double" style="color: #1b5e20;"></i> Completed Departmental Targets
+          </h5>
+          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:1rem;">
+            {% for t in target_progress %}
+              {% if t.gap == 0 %}
+              <div class="target-compact-card" style="padding: 0.8rem 1rem; background:#ffffff; border:1.5px solid #16a34a; cursor:default; box-shadow:none; border-left: 5px solid #16a34a;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.5rem;">
+                  <span style="font-weight:700; font-size:.82rem; color:#16a34a; line-height:1.2;">{{ t.sheet_name|truncatechars:35 }}</span>
+                  <span style="font-size:.8rem; font-weight:800; color:#16a34a;">✅ 100%</span>
+                </div>
+                <div style="height:7px; background:#dcfce7; border-radius:4px; margin-bottom:.6rem; overflow:hidden;">
+                  <div style="height:100%; width:100%; background:#16a34a;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:.72rem;">
+                  <span style="color:#166534; font-weight:700;">{{ t.achieved }}/{{ t.target }} COMPLETED</span>
+                  <span style="background:#dcfce7; color:#166534; padding:.15rem .45rem; border-radius:20px; font-weight:800; font-size:0.65rem;">FINALIZED</span>
+                </div>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+      </div>
+    </div>
+{% else %}
+    <!-- Faculty Perspective Targets -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">
+      {% for tp in target_progress %}
+        {% if tp.gap > 0 %}
+        <a href="{% url 'submit_activity' %}?cat={{ tp.category|urlencode }}&sheet={{ tp.sheet_name|urlencode }}" class="target-compact-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.5rem;">
+            <span style="font-weight:800; font-size:.82rem; color:var(--text-main); line-height:1.2;">{{ tp.sheet_name|truncatechars:35 }}</span>
+            <span style="font-size:.8rem; font-weight:900; color:var(--orange-500);">{{ tp.pct }}%</span>
+          </div>
+          <div class="target-bar-wrap">
+            <div class="target-bar-bg"><div style="height:100%; width:{{ tp.pct }}%; background:var(--orange-500);"></div></div>
+            <div style="display:flex; justify-content:space-between; margin-top:.4rem; font-size:.65rem; font-weight:700; color:var(--text-muted);">
+              <span>{{ tp.achieved }}/{{ tp.target }}</span>
+              <span style="color:var(--orange-600);">Need {{ tp.gap }} more</span>
+            </div>
+          </div>
+        </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+{% endif %}

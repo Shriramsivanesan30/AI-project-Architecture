@@ -1,0 +1,23 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange "C" Ring -->
+  <path d="M190 205C171.5 221.7 147 232 120 232C62.5 232 16 185.5 16 128C16 70.5 62.5 24 120 24C177.5 24 224 70.5 224 128C224 145.5 219.7 161.8 212 176" 
+        stroke="#E8420A" stroke-width="28" stroke-linecap="butt" fill="none"/>
+  
+  <!-- The Black Globe -->
+  <circle cx="142" cy="124" r="88" fill="#000000"/>
+  
+  <!-- Globe Gridlines -->
+  <mask id="m">
+    <circle cx="142" cy="124" r="88" fill="white"/>
+  </mask>
+  <g mask="url(#m)" stroke="white" stroke-width="2" stroke-opacity="0.5">
+    <!-- Tilting the grid slightly for that MCET look -->
+    <path d="M50 100C80 110 142 124 234 100" fill="none"/>
+    <path d="M50 148C80 158 142 172 234 148" fill="none"/>
+    <path d="M110 36C120 66 134 124 110 212" fill="none"/>
+    <path d="M174 36C164 66 150 124 174 212" fill="none"/>
+    <!-- Basic Cross -->
+    <line x1="54" y1="124" x2="230" y2="124" stroke-opacity="0.3"/>
+    <line x1="142" y1="36" x2="142" y2="212" stroke-opacity="0.3"/>
+  </g>
+</svg>

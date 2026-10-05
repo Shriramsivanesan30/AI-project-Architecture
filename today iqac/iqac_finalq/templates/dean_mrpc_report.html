@@ -1,0 +1,2617 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dean R&amp;I - MRPC Research Report | MCET</title>
+    <script nonce="{{ request.csp_nonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script nonce="{{ request.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="shortcut icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <style>
+        :root {
+            --orange: #E87722;
+            --navy: #1a2540;
+            --light-bg: #f8f8f8;
+            --border: #e2e8f0;
+            --text-main: #334155;
+            --gold: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Arial, sans-serif;
+            background: var(--light-bg);
+            color: var(--navy);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Controls */
+        .controls {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            position: sticky;
+            top: 20px;
+            z-index: 1000;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--orange);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d66a1a;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid var(--navy);
+            color: var(--navy);
+        }
+
+        .btn-outline:hover {
+            background: var(--navy);
+            color: white;
+        }
+
+        /* Report Container */
+        #report-wrapper {
+            display: none;
+            /* Shown after generation */
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .report-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 10mm auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+            box-sizing: border-box;
+            border: 2px solid #333;
+            /* Outer Frame */
+            animation: fadeIn 0.8s ease forwards;
+        }
+
+        .report-page::after {
+            content: '';
+            position: absolute;
+            top: 5mm;
+            left: 5mm;
+            right: 5mm;
+            bottom: 5mm;
+            border: 1px solid #333;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading Spinner */
+        #loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 4rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #eee;
+            border-top: 5px solid var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .rotate-arrow {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            font-size: 1.2rem;
+            vertical-align: middle;
+        }
+
+        /* Typography */
+        h1,
+        h2,
+        h3,
+        h4 {
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .section-title {
+            color: var(--orange);
+            font-size: 1.4rem;
+            font-weight: 800;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sub-title {
+            color: var(--navy);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        /* Header Repeating */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .logo-block img {
+            height: 85px;
+            object-fit: contain;
+            mix-blend-mode: multiply;
+            filter: contrast(1.2) brightness(1.05);
+            clip-path: inset(6% 0);
+        }
+
+        .inst-details {
+            text-align: center;
+            flex: 1;
+            padding: 0 1rem;
+        }
+
+        .inst-details h2 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .inst-details p {
+            font-size: 0.65rem;
+            margin: 2px 0;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .nm100 {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+
+        /* Cover Page Specific */
+        .cover-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .dean-office {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-top: 2rem;
+        }
+
+        .main-banner {
+            background: var(--orange);
+            color: white;
+            width: 100%;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-size: 2rem;
+            font-weight: 900;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(232, 119, 34, 0.3);
+        }
+
+        .period-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 3rem;
+        }
+
+        /* Infographic Tree */
+        .tree-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 2rem 0;
+        }
+
+        .node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: white;
+            border: 4px solid var(--orange);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.9rem;
+            color: var(--navy);
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+
+        .node-top {
+            top: 0;
+            left: 50%;
+            translate: -50% 0;
+        }
+
+        .node-right {
+            top: 50%;
+            right: 0;
+            translate: 0 -50%;
+        }
+
+        .node-left {
+            top: 50%;
+            left: 0;
+            translate: 0 -50%;
+        }
+
+        .node-bottom {
+            bottom: 0;
+            left: 50%;
+            translate: -50% 0;
+        }
+
+        .connector {
+            position: absolute;
+            background: var(--orange);
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            translate: -50% 0;
+            z-index: 1;
+            opacity: 0.3;
+        }
+
+        .connector-h {
+            position: absolute;
+            background: var(--orange);
+            height: 2px;
+            width: 100%;
+            top: 50%;
+            translate: 0 -50%;
+            z-index: 1;
+            opacity: 0.3;
+        }
+
+        .callout-bubble {
+            background: #fff7ed;
+            border: 2px dashed var(--orange);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            margin-top: 2rem;
+        }
+
+        .callout-bubble .val {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--orange);
+        }
+
+        .callout-bubble .note {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        /* Tables and Grids */
+        .table-wrap {
+            overflow-x: auto;
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 1rem;
+            table-layout: auto;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--navy);
+            font-weight: 800;
+            text-align: left;
+            padding: 4px 6px !important;
+            border: 1px solid var(--border);
+            word-wrap: break-word;
+        }
+
+        td {
+            padding: 4px 6px !important;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            word-wrap: break-word;
+        }
+
+        tr:nth-child(even) {
+            background: #fcfcfc;
+        }
+
+        .total-row {
+            background: #fef3c7 !important;
+            font-weight: 700;
+            color: #92400e;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .dash-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-val {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--orange);
+        }
+
+        .card-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .card-item span {
+            color: var(--navy);
+            font-weight: 800;
+        }
+
+        /* Charts Layout */
+        .charts-row {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-box {
+            flex: 1;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .chart-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--navy);
+            text-align: center;
+        }
+
+        /* Heatmap Grid */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: 120px repeat(13, 1fr);
+            gap: 2px;
+            background: #eee;
+            border: 1px solid #eee;
+            margin-top: 2rem;
+        }
+
+        .hm-cell {
+            height: 40px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .hm-head {
+            background: #f8fafc;
+            font-weight: 800;
+        }
+
+        /* Leaderboard Cards */
+        .leader-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .leader-card {
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .leader-rank {
+            width: 35px;
+            height: 35px;
+            background: var(--gold);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .leader-info h4 {
+            font-size: 0.9rem;
+            color: var(--navy);
+            margin-bottom: 2px;
+        }
+
+        .leader-info p {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .leader-score {
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .score-val {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: var(--orange);
+        }
+
+        .score-label {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        /* Initiatives List */
+        .initiatives-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+        }
+
+        .init-col h4 {
+            color: var(--orange);
+            border-bottom: 1px solid #eee;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.3rem;
+        }
+
+        .init-col ul {
+            padding-left: 1.2rem;
+            margin: 0;
+        }
+
+        .init-col li {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Footer Decoration */
+        .page-footer {
+            position: absolute;
+            bottom: 30px;
+            /* Moved slightly down */
+            left: 40px;
+            right: 40px;
+            border-top: 1px solid #ccc;
+            padding-top: 1.5rem;
+            /* Increased padding */
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            z-index: 10;
+        }
+
+        /* Mission Vision Cards */
+        .mv-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .mv-card {
+            border-left: 5px solid var(--orange);
+            background: #fffcf9;
+            padding: 1.5rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .mv-card h3 {
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .mv-card p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        /* Ranking Medals */
+        .rank-badge {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 900;
+            margin-right: 5px;
+            color: white;
+        }
+
+        .rank-1 {
+            background: #fbbf24;
+        }
+
+        .rank-2 {
+            background: #94a3b8;
+        }
+
+        .rank-3 {
+            background: #b45309;
+        }
+
+        /* Print CSS */
+        .report-wrapper *[contenteditable="true"]:hover {
+            background: rgba(232, 119, 34, 0.05);
+            outline: 1px dashed var(--orange);
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0 !important;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 210mm;
+            }
+
+            .report-page {
+                margin: 0 !important;
+                padding: 15mm !important;
+                box-shadow: none !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                overflow: hidden !important;
+            }
+        }
+
+        @media (max-width: 600px) {
+
+            .charts-row,
+            .dashboard-grid,
+            .leader-grid,
+            .initiatives-row {
+                grid-template-columns: 1fr;
+                flex-direction: column;
+            }
+
+            .report-page {
+                padding: 1rem;
+            }
+        }
+        /* ── Chart.js canvas fill fix ──
+           width:100% lets canvas fill container width.
+           height is set via explicit HTML attribute on each canvas. */
+        canvas {
+            display: block;
+        }
+
+        /* Cadre pie container needs explicit height */
+        .chart-box {
+            min-height: 260px;
+            height: 260px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls no-print">
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <div class="logo-block">
+                <img src="{% static 'images/mcet_logo_new.jpg' %}" alt="MCET Logo">
+            </div>
+            <a href="{% url 'dashboard' %}" style="background:#f1f5f9; border:1.5px solid #e2e8f0; color:#334155; padding:0.5rem 1rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:0.85rem;">← Back</a>
+        </div>
+        <div style="display:flex; gap:1rem; align-items:center;">
+            <form method="GET" action="{% url 'dean_mrpc_report' %}" style="display:inline-flex; align-items:center; gap:0.5rem;">
+                <label style="font-size:0.8rem; font-weight:700; color:#64748b;">Year:</label>
+                <select name="year" onchange="this.form.submit()" style="padding:0.5rem 0.8rem; border-radius:8px; border:1.5px solid #e2e8f0; font-weight:600; font-size:0.85rem; cursor:pointer; background:#fff;">
+                    {% for yr in academic_years %}
+                    <option value="{{ yr }}" {% if yr == academic_year %}selected{% endif %}>{{ yr }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <button class="btn btn-primary" id="gen-btn" style="display: flex; align-items: center; justify-content: center;">
+                <span id="gen-icon" style="display: none;" class="rotate-arrow">↻</span>
+                <span id="btn-text">Generate MRPC Report</span>
+            </button>
+            <button class="btn btn-outline" id="print-btn" style="display:none;">
+                Download as PDF
+            </button>
+        </div>
+    </div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <p style="font-weight:800; color:var(--orange);">Gathering Real-time Research Data...</p>
+    </div>
+
+    <!-- Report Sections -->
+    <div id="report-wrapper" contenteditable="true">
+        <!-- Page 1: Cover -->
+        <div class="report-page">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 2rem;">
+                <div style="width:160px; display:flex; align-items:center;"><img src="{% static 'images/mcet_logo_new.jpg' %}" alt="Logo"
+                        style="height:80px; width:100%; object-fit:contain; mix-blend-mode: multiply; filter: contrast(1.2) brightness(1.05); clip-path: inset(6% 0);"></div>
+                <div class="inst-details" style="text-align:center;">
+                    <h1 style="color:var(--orange); font-size:1.8rem; margin:0;">Dr. MAHALINGAM</h1>
+                    <p style="font-weight:700; color:var(--navy); font-size:0.75rem; margin:0;">COLLEGE OF ENGINEERING
+                        AND TECHNOLOGY</p>
+                    <p style="font-size:0.65rem; margin:0;">Udumalai Road, Pollachi, Coimbatore District 642003</p>
+                    <div
+                        style="background:var(--orange); color:white; font-size:0.55rem; padding:2px 5px; display:inline-block; margin-top:2px;">
+                        An Autonomous Institution Since 2011</div>
+                </div>
+                <div style="text-align:right;">
+                    <img src="{% static 'images/nm100.png' %}" alt="NM 100"
+                        style="height:60px; border-radius: 4px; object-fit: contain;">
+                </div>
+            </div>
+
+            <div class="cover-content"
+                style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+                <h2
+                    style="color:var(--navy); font-size:2.2rem; font-weight:900; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:-1px;">
+                    Office of Dean<br>Research & Innovation</h2>
+                <div
+                    style="background:var(--orange); color:white; width:110%; padding: 1rem; margin: 1.5rem 0; font-size: 1.8rem; font-weight:900; box-shadow: 0 4px 15px rgba(232, 119, 34, 0.2);">
+                    Monthly Research Progress Connect (MRPC)</div>
+                <div style="color:var(--orange); font-size:1.4rem; font-weight:800; margin-bottom:2rem; opacity:0.9;">
+                    Period: 1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</div>
+
+                <!-- Central Visual Section -->
+                <div
+                    style="position:relative; width:100%; max-width:500px; height:450px; display:flex; align-items:center; justify-content:center; margin-top:1rem;">
+                    <!-- Tree/Growth Illustration -->
+                    <img src="https://img.freepik.com/free-vector/tree-concept-illustration_114360-642.jpg"
+                        style="width:85%; height:85%; opacity:0.7; object-fit:contain; filter: saturate(1.2);">
+
+                    <!-- Floating Performance Bubbles -->
+                    <!-- Journal -->
+                    <div
+                        style="position:absolute; top:5%; left:35%; background:linear-gradient(135deg, #4ade80, #fbbf24); width:75px; height:75px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:900; border:4px solid #fff; box-shadow:0 8px 20px rgba(0,0,0,0.15); font-size:0.7rem; z-index:10;">
+                        <span style="font-size:0.9rem;">JP</span><span>100</span>
+                    </div>
+                    <!-- Projects -->
+                    <div
+                        style="position:absolute; top:40%; left:2%; background:linear-gradient(135deg, #60a5fa, #3b82f6); width:85px; height:85px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-weight:900; border:4px solid #fff; box-shadow:0 8px 20px rgba(0,0,0,0.15); font-size:0.75rem; z-index:10;">
+                        <span style="font-size:1rem;">PRO</span><span>600</span>
+                    </div>
+                    <!-- IPR -->
+                    <div
+                        style="position:absolute; top:40%; right:2%; background:linear-gradient(135deg, #f472b6, #db2777); width:75px; height:75px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-weight:900; border:4px solid #fff; box-shadow:0 8px 20px rgba(0,0,0,0.15); font-size:0.7rem; z-index:10;">
+                        <span style="font-size:0.9rem;">IP</span><span>100</span>
+                    </div>
+
+                    <!-- Main RI Metric -->
+                    <div
+                        style="position:absolute; bottom:5%; left:50%; translate:-50% 0; background:white; padding:12px 30px; border-radius:50px; border:2px solid var(--orange); box-shadow: 0 10px 25px rgba(0,0,0,0.1); display:flex; align-items:center; gap:15px; z-index:20; white-space: nowrap;">
+                        <div style="text-align:right;">
+                            <div style="font-size:0.6rem; font-weight:800; color:#64748b; text-transform:uppercase;">
+                                Institutional Score</div>
+                            <div style="font-weight:900; font-size:1.4rem; color:var(--navy);">RI 600</div>
+                        </div>
+                        <div style="width:2px; height:30px; background:#e2e8f0;"></div>
+                        <div style="text-align:left;">
+                            <div style="font-size:0.6rem; font-weight:800; color:#64748b; text-transform:uppercase;">
+                                Current Achievement</div>
+                            <div style="font-weight:900; font-size:1.4rem; color:var(--orange);">{{ total_inst_points|floatformat:0 }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Summary Card -->
+                <div style="margin-top:2rem; width:100%; max-width:600px; display:flex; justify-content:center;">
+                    <div
+                        style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:15px; padding:1.2rem 2.5rem; display:flex; align-items:center; gap:2rem;">
+                        <div style="text-align:center;">
+                            <div style="font-size:0.65rem; font-weight:800; color:#64748b; margin-bottom:4px;">TARGET
+                                POINTS</div>
+                            <div style="font-size:1.4rem; font-weight:900; color:var(--navy);">40.0</div>
+                        </div>
+                        <div style="font-size:1.5rem; font-weight:300; color:#cbd5e1;">x</div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.65rem; font-weight:800; color:#64748b; margin-bottom:4px;">FACULTY
+                                COUNT</div>
+                            <div style="font-size:1.4rem; font-weight:900; color:var(--navy);">240</div>
+                        </div>
+                        <div style="font-size:1.5rem; font-weight:300; color:#cbd5e1;">=</div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.65rem; font-weight:800; color:#64748b; margin-bottom:4px;">RI 1000
+                                GOAL</div>
+                            <div style="font-size:1.4rem; font-weight:900; color:var(--orange);">9600*</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                style="margin-top:auto; border-top:2px solid var(--navy); width:100%; padding-top:10px; text-align:center; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:800; font-size:0.8rem; color:var(--navy);">MCET Research Excellence</span>
+                <span style="font-weight:900; font-size:1.2rem; color:var(--navy); text-transform:uppercase;">Calendar
+                    Year 2026</span>
+            </div>
+        </div>
+
+        <!-- Page 2: Vision & Mission -->
+        <div class="report-page">
+            <h2 class="blue-text" style="text-align:center; font-size:1.5rem; margin-top:2rem;">Dr. Mahalingam College
+                of Engineering & Technology, Pollachi</h2>
+
+            <h3 class="brown-text" style="text-align:center; margin-top:2rem;">Vision and Mission of the Institute</h3>
+
+            <div style="padding:0 2rem;">
+                <h4 class="blue-text" style="text-align:center;">Vision</h4>
+                <p style="text-align:center;">We develop globally competitive workforce and entrepreneurs</p>
+
+                <h4 class="blue-text" style="text-align:center; margin-top:1.5rem;">Mission</h4>
+                <p style="text-align:justify; line-height:1.6;">Dr. Mahalingam College of Engineering and Technology,
+                    Pollachi endeavors to impart high quality; competency based technical education in Engineering and
+                    Technology to the younger generation with the required skills and abilities to face the challenging
+                    needs of the industry around the globe.</p>
+                <p style="text-align:justify; line-height:1.6;">This institution is also striving hard to attain a
+                    unique status in the international level by means of infrastructure, state-of-the-art computer
+                    facilities and techniques.</p>
+            </div>
+
+            <h3 class="brown-text" style="text-align:center; margin-top:2rem;">Vision and Mission of the Office of Dean
+                Research & Innovation</h3>
+
+            <div style="padding:0 2rem;">
+                <h4 class="blue-text" style="text-align:center;">Vision</h4>
+                <p style="text-align:center;">To become a globally recognized hub of pioneering research and innovation,
+                    driving transformative advancements in engineering and technology for the betterment of society.</p>
+
+                <h4 class="blue-text" style="text-align:center; margin-top:1rem;">Mission</h4>
+                <ul style="list-style:none; padding-left:0;">
+                    <li style="margin-bottom:0.8rem; display:flex; gap:10px;">
+                        <span style="color:var(--navy); font-size:1.2rem;">➢</span>
+                        <span>Foster research excellence and innovation by identifying potential IPR, offering financial
+                            support for filing, facilitating revenue sharing from consultancy collaborations, and
+                            rewarding faculty through fair incentives.</span>
+                    </li>
+                    <li style="margin-bottom:0.8rem; display:flex; gap:10px;">
+                        <span style="color:var(--navy); font-size:1.2rem;">➢</span>
+                        <span>Strengthen research interest groups, empower the student research council, and publish the
+                            R&I newsletter to promote and celebrate achievements in the domain of research and
+                            innovation.</span>
+                    </li>
+                    <li style="margin-bottom:0.8rem; display:flex; gap:10px;">
+                        <span style="color:var(--navy); font-size:1.2rem;">➢</span>
+                        <span>Disseminate knowledge through the publication of research, knowledge-sharing sessions,
+                            seminars, faculty development programs, workshops, inter- and intra-college technical
+                            symposiums, conferences, and open-house exhibitions.</span>
+                    </li>
+                    <li style="margin-bottom:0.8rem; display:flex; gap:10px;">
+                        <span style="color:var(--navy); font-size:1.2rem;">➢</span>
+                        <span>Offer state-of-the-art research facilities and resources to facilitate interdisciplinary
+                            research projects, secure research funding, conduct research with industry partners, and
+                            carry out PhD works.</span>
+                    </li>
+                    <li style="margin-bottom:0.8rem; display:flex; gap:10px;">
+                        <span style="color:var(--navy); font-size:1.2rem;">➢</span>
+                        <span>Review PhD scholars' progress, department R&I activities, ongoing externally funded
+                            projects, in-house R&D projects, and Institute Innovation Council activities.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 2 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 3: INDEX -->
+        <div class="report-page">
+            <h2 class="blue-text" style="text-align:center; font-size:1.8rem; margin-top:2rem;">INDEX</h2>
+            <div style="padding:2rem;">
+                <table style="border: 1px solid #000; font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:#f5c4b0;">
+                            <th style="border:1px solid #000; text-align:center; width:60px;">S.No.</th>
+                            <th style="border:1px solid #000; text-align:center;">Research Details</th>
+                            <th style="border:1px solid #000; text-align:center; width:120px;">Page Number</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-weight:700;">
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">1.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Institution Research
+                                Dashboard</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">4</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">2.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Departmentwise Research
+                                Dashboard</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">6</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">3.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Departmentwise Research
+                                Dashboard for Publications</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">7</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">4.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Departmentwise Research
+                                Dashboard for IPR</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">9</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">5.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Departmentwise Ranking
+                                based on Research Points</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">11</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">6.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Faculty Cadre wise
+                                Research Performance Analysis – Institute level</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">12</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">7.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Faculty Cadre wise
+                                Research Performance Analysis – Department level</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">13</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">8.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Top ten Institution
+                                level Research Performers</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">17</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">9.</td>
+                            <td style="border:1px solid #000; padding:10px; color:var(--navy);">Top Research Performers
+                                - Department level</td>
+                            <td style="border:1px solid #000; text-align:center; padding:10px;">18</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 3 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 4: Institution Dashboard Table 1 -->
+        <div class="report-page">
+            <h2
+                style="text-align:center; color:#2d5a27; text-decoration: underline; font-size:1.5rem; margin-top:1rem;">
+                Institution Research Dashboard</h2>
+            <h3 style="text-align:center; color:#800000; font-size:1.3rem;">Table 1: Summary of Research Outcome</h3>
+
+            <div style="padding:0 1rem;">
+                <table style="border: 2px solid #000; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#f5c4b0;">
+                            <th colspan="3" style="border:1px solid #000; text-align:center; padding:10px;">Publication,
+                                IPR, Funding and<br>Consultancy Count</th>
+                            <th style="border:1px solid #000; text-align:center;">No. of<br>Publications/<br>Projects
+                            </th>
+                            <th style="border:1px solid #000; text-align:center; width:100px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="5"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); width:150px;">
+                                No. of Research<br>Publications</td>
+                            <td rowspan="3"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); width:100px;">
+                                Journals</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                Q1</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                {{ summary.q1 }}</td>
+                            <td rowspan="5"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#ffe7d1; font-size:1rem;">
+                                {{ summary.pub }}</td>
+                        </tr>
+                        <tr>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                SCIE</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                {{ summary.scie }}</td>
+                        </tr>
+                        <tr>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                Scopus</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                {{ summary.scopus }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                Book-Chapters</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                {{ summary.bc }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                Conferences</td>
+                            <td
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#fff;">
+                                {{ summary.conf }}</td>
+                        </tr>
+
+                        <tr>
+                            <td rowspan="4"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                No. of IPRs</td>
+                            <td rowspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Patent</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Filed</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.pat_f }}</td>
+                            <td rowspan="4"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#ffe7d1; font-size:1rem;">
+                                {{ summary.ipr }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Grant</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.pat_g }}</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Design</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Filed</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.des }}</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Registered</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.des_r|default:"-" }}</td>
+                        </tr>
+
+                        <tr>
+                            <td colspan="3"
+                                style="border:1px solid #000; text-align:left; padding-left:10px; font-weight:700; color:#2d5a27;">
+                                No. of Technology Transfer</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">-
+                            </td>
+                            <td style="border:1px solid #000; background:#ffe7d1;"></td>
+                        </tr>
+
+                        <tr>
+                            <td rowspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Funding and<br>Consultancy</td>
+                            <td colspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Number of Funding and<br>Consultancy Projects<br>Completed /Ongoing</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.funding }}</td>
+                            <td rowspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy); background:#ffe7d1; font-size:1rem;">
+                                {{ summary.funding }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"
+                                style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">
+                                Amount Received<br>in Lakhs</td>
+                            <td style="border:1px solid #000; text-align:center; font-weight:700; color:var(--navy);">{{ summary.amount }}</td>
+                        </tr>
+
+                        <tr style="background:#f5c4b0; font-weight:900;">
+                            <td colspan="4" style="border:1px solid #000; text-align:right; padding-right:20px;">Total
+                            </td>
+                            <td style="border:1px solid #000; text-align:center;">{{ total_inst_points|floatformat:0 }}*
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="font-size:0.6rem; font-weight:700; margin-top:10px;">*Points are counted uniquely and without
+                    overlap at the college level. Joint publications across departments are counted separately for each
+                    department. For example, if faculty members from the Cyber Security department and the Civil
+                    department jointly contribute to a research publication, it is counted as one point at the college
+                    level and two points at the department level (one for each department).</p>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 4 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 5: Charts -->
+        <div class="report-page">
+            <div
+                style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-around; padding:2rem 0;">
+                <div style="width:100%; text-align:center;">
+                    <div style="height:300px; width:450px; margin:0 auto;">
+                        <canvas id="pubPie" height="300"></canvas>
+                    </div>
+                    <h4 class="brown-text" style="font-size:1rem; margin-top:1rem;">Fig.1 Distribution of Research
+                        Publications by Category</h4>
+                </div>
+
+                <div style="width:100%; text-align:center; margin-top:3rem;">
+                    <div style="height:300px; width:450px; margin:0 auto;">
+                        <canvas id="iprPie" height="300"></canvas>
+                    </div>
+                    <h4 class="brown-text" style="font-size:1rem; margin-top:1rem;">Fig.2 Distribution of IPR by
+                        Category</h4>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 5 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 6: Table 2 Dept Dashboard -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#800000; font-size:1.3rem; margin-top:1rem;">Table 2: Departmentwise
+                Research Dashboard</h3>
+            <div style="padding:0 0.2rem;">
+                <table
+                    style="border: 2px solid #000; font-size:0.55rem; text-align:center; width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000; width:30px;">S.No</th>
+                            <th style="border:1px solid #000; width:80px;">Department</th>
+                            <th style="border:1px solid #000;">Faculty Count</th>
+                            <th style="border:1px solid #000;">Points / Faculty</th>
+                            <th style="border:1px solid #000;">Funding & Consultancy</th>
+                            <th style="border:1px solid #000;">Amount (Lakhs)</th>
+                            <th style="border:1px solid #000;">Journal Pubs</th>
+                            <th style="border:1px solid #000;">Book / Conf</th>
+                            <th style="border:1px solid #000;">Patents Published</th>
+                            <th style="border:1px solid #000;">Design / Reg.</th>
+                            <th style="border:1px solid #000;">Tech Transfer / Grant</th>
+                            <th style="border:1px solid #000; width:45px;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overallBody"></tbody>
+                    <tfoot id="overallFoot"></tfoot>
+                </table>
+                <p style="font-size:0.55rem; font-weight:700; margin-top:15px;">*Those who submitted the MRPC form are
+                    alone considered</p>
+                <p style="font-size:0.55rem; font-weight:700;">*Points are counted uniquely and without overlap at the
+                    college level. Joint publications across departments are counted separately for each department. For
+                    example, if faculty members from the Cyber Security department and the Civil department jointly
+                    contribute to a research publication, it is counted as one point at the college level and two points
+                    at the department level (one for each department).</p>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 6 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 7: Table 3 Pub Dashboard -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#800000; font-size:1.3rem; margin-top:1rem;">Table 3: Departmentwise
+                Research Dashboard for Publications</h3>
+            <div style="padding:0 1.5rem;">
+                <table style="border: 2px solid #000; font-size:0.65rem; text-align:center; width:100%;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th rowspan="2" style="border:1px solid #000;">S.No.</th>
+                            <th rowspan="2" style="border:1px solid #000;">Name of the Department</th>
+                            <th colspan="3" style="border:1px solid #000;">No. of Journal Publications</th>
+                            <th rowspan="2" style="border:1px solid #000;">No. of Book Chapter Publications</th>
+                            <th rowspan="2" style="border:1px solid #000;">No. of Indexed Conferences</th>
+                            <th rowspan="2" style="border:1px solid #000;">Research Points Earned per faculty for
+                                Publications</th>
+                            <th rowspan="2" style="border:1px solid #000;">Total</th>
+                        </tr>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000;">Q1</th>
+                            <th style="border:1px solid #000;">SCIE</th>
+                            <th style="border:1px solid #000;">Scopus</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pubBody"></tbody>
+                    <tfoot id="pubFoot"></tfoot>
+                </table>
+                <p style="font-size:0.6rem; font-weight:700; margin-top:15px;">*Points are counted uniquely and without
+                    overlap at the college level. Joint publications across departments are counted separately for each
+                    department. For example, if faculty members from the Cyber Security department and the Civil
+                    department jointly contribute to a research publication, it is counted as one point at the college
+                    level and two points at the department level (one for each department).</p>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 7 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 8: Pub Charts & Heatmap -->
+        <div class="report-page">
+            <div
+                style="display:flex; flex-direction:column; align-items:center; justify-content:space-around; height:90%;">
+                <div style="width:90%; display:flex; flex-direction:column;">
+                    <div style="height:330px; width:100%;">
+                        <canvas id="pubStackedBar" height="330"></canvas>
+                    </div>
+                    <h4 style="color:#800000; text-align:center; font-size:0.9rem; margin-top:0.5rem;">
+                        Fig.3-Departmentwise Research Publications by Category</h4>
+                </div>
+
+                <div style="width:90%; border:1px solid #ccc; padding:15px; background:#fff; align-self:center;">
+                    <div style="display:flex; align-items:flex-start;">
+                        <div id="pubHeatmap" style="display:grid; grid-template-columns: 150px repeat(5, 1fr); flex:1; gap:2px; background:#eee; border:1px solid #ccc;">
+                            <!-- Static Headers -->
+                            <div style="background:#f8fafc; height:30px; border:1px solid #ddd;"></div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:900; display:flex; align-items:center; justify-content:center;">Q1</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:900; display:flex; align-items:center; justify-content:center;">SCIE</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:900; display:flex; align-items:center; justify-content:center;">Scopus</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:900; display:flex; align-items:center; justify-content:center;">BC</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:900; display:flex; align-items:center; justify-content:center;">Conf</div>
+                        </div>
+                        <!-- Legend -->
+                        <div style="width:40px; height:250px; margin-left:10px; display:flex; flex-direction:column; position:relative;">
+                            <div style="flex:1; background:linear-gradient(to top, #f7fbff, #08306b); border:1px solid #ccc; width:15px; align-self:center;"></div>
+                            <div style="position:absolute; top:0; bottom:0; right:0; display:flex; flex-direction:column; justify-content:space-between; font-size:0.55rem; font-weight:900;">
+                                <span>20</span><span>15</span><span>10</span><span>5</span><span>0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <h4 style="color:#800000; text-align:center; font-size:0.9rem; margin-top:0.5rem; font-weight:800;">Fig.4 – Heatmap for Departmentwise Research Publications by Category</h4>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 8 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 9: Table 4 IPR Dashboard -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#800000; font-size:1.3rem; margin-top:1rem;">Table 4: Departmentwise
+                Research Dashboard for IPRs</h3>
+            <div style="padding:0 0.2rem;">
+                <table
+                    style="border: 2px solid #000; font-size:0.55rem; text-align:center; width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th rowspan="2" style="border:1px solid #000; width:30px;">S.No</th>
+                            <th rowspan="2" style="border:1px solid #000; width:80px;">Department</th>
+                            <th colspan="2" style="border:1px solid #000;">Patent</th>
+                            <th colspan="2" style="border:1px solid #000;">Design</th>
+                            <th colspan="2" style="border:1px solid #000;">Copyright</th>
+                            <th rowspan="2" style="border:1px solid #000;">Tech Transfer</th>
+                            <th rowspan="2" style="border:1px solid #000;">Points / Faculty</th>
+                            <th rowspan="2" style="border:1px solid #000; width:45px;">Total</th>
+                        </tr>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000;">Filed</th>
+                            <th style="border:1px solid #000;">Grant</th>
+                            <th style="border:1px solid #000;">Filed</th>
+                            <th style="border:1px solid #000;">Reg.</th>
+                            <th style="border:1px solid #000;">Filed</th>
+                            <th style="border:1px solid #000;">Reg.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="iprBody"></tbody>
+                    <tfoot id="iprFoot"></tfoot>
+                </table>
+                <p style="font-size:0.6rem; font-weight:700; margin-top:15px;">*Points are counted uniquely and without
+                    overlap at the college level. Joint patents across departments are counted separately for each
+                    department. For example, if faculty members from the Cyber Security department and the Civil
+                    department jointly contribute to IPR, it is counted as one point at the college level and two points
+                    at the department level (one for each department).</p>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 9 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 10: IPR Charts & Heatmap -->
+        <div class="report-page">
+            <div
+                style="display:flex; flex-direction:column; align-items:center; justify-content:space-around; height:90%;">
+                <div style="width:90%; display:flex; flex-direction:column;">
+                    <div style="height:330px; width:100%;">
+                        <canvas id="iprStackedBar" height="330"></canvas>
+                    </div>
+                    <h4 style="color:#800000; text-align:center; font-size:0.9rem; margin-top:0.5rem;">Fig.5 –
+                        Departmentwise IPR by Category</h4>
+                </div>
+
+                <div style="width:90%; border:1px solid #ccc; padding:15px; background:#fff; align-self:center;">
+                    <div style="display:flex; align-items:flex-start;">
+                        <div id="iprHeatmap" style="display:grid; grid-template-columns: 150px repeat(6, 1fr); flex:1; gap:2px; background:#eee; border:1px solid #ccc;">
+                            <!-- Headers -->
+                            <div style="background:#f8fafc; height:30px; border:1px solid #ddd;"></div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Patent_Filed</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Patent_Grant</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Design_Filed</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Design_Reg</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Copyright_F</div>
+                            <div style="background:#f8fafc; border:1px solid #ddd; font-size:0.5rem; font-weight:900; text-align:center;">Copyright_R</div>
+                        </div>
+                        <!-- Legend -->
+                        <div style="width:40px; height:250px; margin-left:10px; display:flex; flex-direction:column; position:relative;">
+                            <div style="flex:1; background:linear-gradient(to top, #f7fbff, #08306b); border:1px solid #ccc; width:15px; align-self:center;"></div>
+                            <div style="position:absolute; top:0; bottom:0; right:0; display:flex; flex-direction:column; justify-content:space-between; font-size:0.55rem; font-weight:900;">
+                                <span>10</span><span>8</span><span>6</span><span>4</span><span>2</span><span>0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <h4 style="color:#800000; text-align:center; font-size:0.9rem; margin-top:0.5rem; font-weight:800;">Fig.6 – Heatmap for Departmentwise IPR by Category</h4>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 10 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 11: Ranking Dashboard -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#800000; font-size:1.3rem; margin-top:1rem;">Table 5: Departmentwise
+                Ranking Based on Research Points</h3>
+            <div style="padding:0 0.5rem;">
+                <table
+                    style="border: 2px solid #000; font-size:0.75rem; text-align:center; width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th rowspan="2" style="border:1px solid #000; width:100px;">Dept.</th>
+                            <th colspan="5" style="border:1px solid #000;">Research Points earned per Faculty</th>
+                            <th rowspan="2" style="border:1px solid #000; width:80px;">Dept wise Rank</th>
+                        </tr>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000;">Publications</th>
+                            <th style="border:1px solid #000;">IPR</th>
+                            <th style="border:1px solid #000;">Funded projects</th>
+                            <th style="border:1px solid #000;">Consultancy Works</th>
+                            <th style="border:1px solid #000;">Total Research Points</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankBody"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:2rem; padding: 1rem; background: #fff; position: relative; border: 1px solid #eee;">
+                <div style="display: flex; align-items: flex-start;">
+                    <!-- Heatmap Grid -->
+                    <div id="rankHeatmap" style="display:grid; grid-template-columns: 150px repeat(5, 1fr); flex:1; gap: 2px; background: #eee; border: 1px solid #ccc;">
+                        <!-- Headers -->
+                        <div style="background:#f8fafc; height: 40px; border:1px solid #ddd;"></div>
+                        <div
+                            style="background:#f8fafc; font-size:0.65rem; font-weight:900; display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid #ddd;">
+                            Publications</div>
+                        <div
+                            style="background:#f8fafc; font-size:0.65rem; font-weight:900; display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid #ddd;">
+                            IPR</div>
+                        <div
+                            style="background:#f8fafc; font-size:0.65rem; font-weight:900; display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid #ddd;">
+                            Funded Projects</div>
+                        <div
+                            style="background:#f8fafc; font-size:0.65rem; font-weight:900; display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid #ddd;">
+                            Consultancy</div>
+                        <div
+                            style="background:#f8fafc; font-size:0.65rem; font-weight:900; display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid #ddd;">
+                            Total Points</div>
+                    </div>
+
+                    <!-- Vertical Legend / Scale -->
+                    <div
+                        style="width: 50px; height: 350px; margin-left:15px; display:flex; flex-direction:column; position: relative;">
+                        <div
+                            style="flex:1; background: linear-gradient(to top, #f7fbff, #08306b); border: 1px solid #ccc; width:20px; align-self: center;">
+                        </div>
+                        <div
+                            style="position:absolute; top:0; bottom:0; right: 0; display:flex; flex-direction:column; justify-content:space-between; font-size:0.6rem; font-weight:900; padding: 2px 0;">
+                            <span>60</span><span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span>
+                        </div>
+                    </div>
+                </div>
+                <h4 style="color:#800000; text-align:center; font-size:1rem; margin-top:1.5rem; font-weight:800;">Fig.7
+                    – Heatmap for Departmentwise Research Points</h4>
+            </div>
+
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 11 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 12: Cadre Institution -->
+        <div class="report-page">
+            <h2 class="section-title">6. Faculty Cadre Analysis (Institution Level)</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Faculty Cadre</th>
+                            <th>Faculty Count</th>
+                            <th>Target</th>
+                            <th>Achieved</th>
+                            <th>Gap</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Professors</td>
+                            <td>18</td>
+                            <td>100</td>
+                            <td>38</td>
+                            <td>62</td>
+                        </tr>
+                        <tr>
+                            <td>Associate Professors</td>
+                            <td>25</td>
+                            <td>88</td>
+                            <td>31</td>
+                            <td>57</td>
+                        </tr>
+                        <tr>
+                            <td>Asst Prof SG</td>
+                            <td>24</td>
+                            <td>75</td>
+                            <td>19</td>
+                            <td>56</td>
+                        </tr>
+                        <tr>
+                            <td>Asst Prof SS</td>
+                            <td>100</td>
+                            <td>63</td>
+                            <td>4</td>
+                            <td>59</td>
+                        </tr>
+                        <tr>
+                            <td>Asst Professors</td>
+                            <td>72</td>
+                            <td>50</td>
+                            <td>5</td>
+                            <td>45</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Grand Total</td>
+                            <td>240</td>
+                            <td>376</td>
+                            <td>97 (Avg)</td>
+                            <td>279</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="chart-box" style="max-width:500px; margin: 0 auto; height:260px;">
+                <div class="chart-title">Cadre-wise Contribution to Research Outcome</div>
+                <canvas id="cadrePie" height="220"></canvas>
+            </div>
+            <p style="font-size:0.7rem; color:#64748b; margin-top:1rem;">*Achieved = Total Research points earned by all
+                faculty in cadre ÷ Number of faculty in cadre.</p>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>Cadre Performance Analysis</span>
+                <span>Page 12 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 13: Faculty Cadre wise Research Performance Analysis - Departmental -->
+        <div class="report-page">
+            <h2 class="section-title" style="color:#dc2626; border:none; margin-bottom:0.8rem;">Table 7: Faculty Cadre
+                wise Research Performance Analysis-Department level</h2>
+            <div class="table-wrap">
+                <table style="font-size:0.55rem; border: 2px solid #000; border-collapse: collapse; width:100%;">
+                    <thead style="background:#f5af8c;">
+                        <tr>
+                            <th rowspan="4" style="border:1px solid #000; text-align:center;">S. No</th>
+                            <th rowspan="4" style="border:1px solid #000; text-align:center;">Dept.</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">Prof.</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">ASP</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">AP(SG)</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">AP(SS)</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">AP</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">Total</th>
+                        </tr>
+                        <tr>
+                            <th colspan="12" style="border:1px solid #000; text-align:center; background:#ffcb9a;">Till
+                                date target per faculty</th>
+                        </tr>
+                        <tr>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">100 points</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">88 points</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">75 points</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">63 points</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">50 points</th>
+                            <th colspan="2" style="border:1px solid #000; text-align:center;">376 points</th>
+                        </tr>
+                        <tr>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                            <th style="border:1px solid #000;">Earned</th>
+                            <th style="border:1px solid #000;">Gap</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cadreFullBody"></tbody>
+                </table>
+                <p style="font-size:0.55rem; font-weight:800; margin-top:0.8rem;">
+                    <span style="color:red; text-decoration:underline;">Note:</span>
+                    Cadre-wise and department-wise per-faculty research points are computed by dividing the total
+                    research points in each cadre by the number of faculty in that cadre. The overall per-faculty score
+                    is obtained by averaging across all departments.
+                </p>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>Departmental Cadre Analysis</span>
+                <span>Page 13 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 14: Cadre Pie + Prof Bar Chart -->
+        <div class="report-page">
+            <h2 class="section-title" style="text-align:center;">Faculty Cadre Performance Analysis – Department level
+                (continued)</h2>
+
+            <!-- Fig.9: Pie Chart – centered -->
+            <div
+                style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin-bottom:1.5rem;">
+                <div style="width:420px; height:310px;">
+                    <canvas id="cadrePieP14" height="310"></canvas>
+                </div>
+                <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.6rem;">
+                    Fig.9: Faculty Cadre wise Distribution of Earned Research Points
+                </h4>
+            </div>
+
+            <!-- Fig.10: Dept-wise Prof Bar Chart – centered -->
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+                <div style="height:330px; width:95%; border: 1.5px solid #a1a1aa; padding: 8px; box-sizing: border-box; background: #fff;">
+                    <canvas id="profBar" height="330"></canvas>
+                </div>
+                <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.6rem;">
+                    Fig.10: Departmentwise Gap Analysis for Professor
+                </h4>
+            </div>
+
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 14 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 15: Assoc Prof + AP(SG) dept-wise gap charts -->
+        <div class="report-page">
+            <h2 class="section-title">Faculty Cadre wise Research Performance Analysis – Department level (continued)
+            </h2>
+            <div style="display:flex; flex-direction:column; gap:1.5rem; flex:1;">
+                <div>
+                    <div style="height:290px; width:100%; border: 1.5px solid #a1a1aa; padding: 8px; box-sizing: border-box; background: #fff;"><canvas id="aspBar" height="290"></canvas></div>
+                    <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.4rem;">
+                        Fig.11: Departmentwise Gap Analysis for Associate Professor</h4>
+                </div>
+                <div>
+                    <div style="height:290px; width:100%; border: 1.5px solid #a1a1aa; padding: 8px; box-sizing: border-box; background: #fff;"><canvas id="apsgBar" height="290"></canvas></div>
+                    <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.4rem;">
+                        Fig.12: Departmentwise Gap Analysis for Assistant Professor (SG)</h4>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 15 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 16: AP(SS) + AP dept-wise gap charts -->
+        <div class="report-page">
+            <h2 class="section-title">Faculty Cadre wise Research Performance Analysis – Department level (continued)
+            </h2>
+            <div style="display:flex; flex-direction:column; gap:1.5rem; flex:1;">
+                <div>
+                    <div style="height:290px; width:100%; border: 1.5px solid #a1a1aa; padding: 8px; box-sizing: border-box; background: #fff;"><canvas id="apssBar" height="290"></canvas></div>
+                    <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.4rem;">
+                        Fig.13: Departmentwise Gap Analysis for Assistant Professor (SS)</h4>
+                </div>
+                <div>
+                    <div style="height:290px; width:100%; border: 1.5px solid #a1a1aa; padding: 8px; box-sizing: border-box; background: #fff;"><canvas id="apBar" height="290"></canvas></div>
+                    <h4 style="color:#800000; font-size:0.9rem; font-weight:800; text-align:center; margin-top:0.4rem;">
+                        Fig.14: Departmentwise Gap Analysis for Assistant Professor</h4>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 16 of 20</span>
+            </div>
+        </div>
+        <!-- Page 11: Top 10 Leaderboard -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#b91c1c; font-size:1.1rem; margin-top:2rem; font-weight: 800;">Table 8:
+                Top 10 Faculty Members based on Research Points Earned Jan 2026 to till date</h3>
+            <div style="padding:0 1.5rem; margin-top:1rem;">
+                <table
+                    style="border: 2px solid #000; font-size:0.85rem; text-align:center; width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000; padding:10px; width:50px;">S.No.</th>
+                            <th style="border:1px solid #000; padding:10px; text-align:left;">Name & Dept. of the
+                                Faculty</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">Pub</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">IPR</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">FC</th>
+                            <th style="border:1px solid #000; padding:10px; width:80px;">Score</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">Rank</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderBoard">
+                        <!-- Data injected by JS -->
+                    </tbody>
+                </table>
+                <div style="font-weight:800; font-size:0.7rem; margin-top:5px; text-align: left;">*Scores are based on
+                    the data provided by the faculty</div>
+
+                <div
+                    style="margin: 2rem auto; max-width: 400px; background:#fca5a5; padding: 1.5rem; border-radius: 15px; font-weight:800; display:flex; flex-direction:column; gap:10px; font-size: 0.9rem; text-align: left;">
+                    <div><span style="display:inline-block; width:40px;">Pub</span> - Publications</div>
+                    <div><span style="display:inline-block; width:40px;">IPR</span> - Intellectual Property Rights</div>
+                    <div><span style="display:inline-block; width:40px;">FC</span> - Funding and Consultancy</div>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 17 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 12: Dept Toppers -->
+        <div class="report-page">
+            <h3 style="text-align:center; color:#b91c1c; font-size:1.1rem; margin-top:2rem; font-weight: 800;">Table 9:
+                Department Toppers &ndash;Jan 2026 to till date</h3>
+            <div style="padding:0 1.5rem; margin-top:1rem;">
+                <table
+                    style="border: 2px solid #000; font-size:0.85rem; text-align:center; width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f5af8c;">
+                            <th style="border:1px solid #000; padding:10px; width:50px;">S.No.</th>
+                            <th style="border:1px solid #000; padding:10px; text-align:left;">Name & Dept. of the
+                                Faculty</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">Pub</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">IPR</th>
+                            <th style="border:1px solid #000; padding:10px; width:60px;">FC</th>
+                            <th style="border:1px solid #000; padding:10px; width:80px;">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deptToppers">
+                        <!-- Data injected by JS -->
+                    </tbody>
+                </table>
+                <div style="font-weight:800; font-size:0.7rem; margin-top:5px; text-align: left;">*Scores are based on
+                    the data provided by the faculty</div>
+
+                <div
+                    style="margin: 2rem auto; max-width: 400px; background:#fca5a5; padding: 1.5rem; border-radius: 15px; font-weight:800; display:flex; flex-direction:column; gap:10px; font-size: 0.9rem; text-align: left;">
+                    <div><span style="display:inline-block; width:40px;">Pub</span> - Publications</div>
+                    <div><span style="display:inline-block; width:40px;">IPR</span> - Intellectual Property Rights</div>
+                    <div><span style="display:inline-block; width:40px;">FC</span> - Funding and Consultancy</div>
+                </div>
+            </div>
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 18 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 13: Initiatives -->
+        <div class="report-page">
+            <div style="text-align:center; margin-top:20px; margin-bottom:15px;">
+                <h2 style="color:#b91c1c; font-size:1.4rem; font-weight:900; margin:0;">Office of Dean - Research &
+                    Innovation</h2>
+                <h3 style="color:#000; font-size:1.2rem; font-weight:900; margin:0;">Research Initiatives</h3>
+            </div>
+
+            <div style="padding:0 2rem; display:flex; flex-direction:column; justify-content:space-between; flex:1;">
+                <div>
+                    <h4
+                        style="text-align:center; color:#b91c1c; font-weight:800; text-decoration:underline; font-size:0.95rem; margin:8px 0 4px 0;">
+                        Research & Collaboration Groups</h4>
+                    <ol start="1"
+                        style="margin:0 0 8px 0; padding-left:30px; font-size:0.8rem; color:#1e3a8a; line-height:1.3;">
+                        <li style="margin-bottom:2px;">Facilitation and integration of interdisciplinary <span
+                                style="font-weight:900; color:#065f46;">Research Interest Groups (RIGs)</span></li>
+                        <li style="margin-bottom:2px;">Promotion and institutional support of <span
+                                style="font-weight:900; color:#065f46;">Institution's Innovation Council (IIC)</span>
+                            activities</li>
+                        <li style="margin-bottom:2px;">Guidance, coordination, and strengthening of <span
+                                style="font-weight:900; color:#1e3a8a;">Student Research Council (SRC)</span> activities
+                        </li>
+                    </ol>
+
+                    <h4
+                        style="text-align:center; color:#b91c1c; font-weight:800; text-decoration:underline; font-size:0.95rem; margin:8px 0 4px 0;">
+                        Faculty & Scholar Development</h4>
+                    <ol start="4"
+                        style="margin:0 0 8px 0; padding-left:30px; font-size:0.8rem; color:#1e3a8a; line-height:1.3;">
+                        <li style="margin-bottom:2px;">Strategic enhancement of full-time research scholar intake</li>
+                        <li style="margin-bottom:2px;">Strengthening the implementation and operational effectiveness of
+                            the <span style="font-weight:900; color:#065f46;">Research Faculty Scheme</span></li>
+                        <li style="margin-bottom:2px;">Organization of <span
+                                style="font-weight:900; color:#1e3a8a;">Knowledge Sharing Sessions (KSS)</span> and
+                            advanced research seminars</li>
+                        <li style="margin-bottom:2px;">Promotion of faculty participation in <span
+                                style="font-weight:900; color:#065f46;">NPTEL&ndash;SWAYAM</span> certification
+                            programmes</li>
+                        <li style="margin-bottom:2px;">Enhancement of faculty engagement in <span
+                                style="font-weight:900; color:#1e3a8a;">Faculty Development Programmes (FDPs)</span>
+                        </li>
+                        <li style="margin-bottom:2px;">Facilitation of government recognition and empanelment for
+                            faculty consultancy services</li>
+                        <li style="margin-bottom:2px;">Strengthening structured reward and recognition mechanisms for
+                            faculty research contributions</li>
+                        <li style="margin-bottom:2px;">Augmentation of research support through enhanced access to print
+                            and e-journal resources</li>
+                    </ol>
+
+                    <h4
+                        style="text-align:center; color:#b91c1c; font-weight:800; text-decoration:underline; font-size:0.95rem; margin:8px 0 4px 0;">
+                        Research Review & Monitoring</h4>
+                    <ol start="12"
+                        style="margin:0 0 8px 0; padding-left:30px; font-size:0.8rem; color:#1e3a8a; line-height:1.3;">
+                        <li style="margin-bottom:2px;">Institution-wide coordination of all NIRF parameters and
+                            strategic initiatives to improve national ranking performance</li>
+                        <li style="margin-bottom:2px;">Institutionalization of periodic and structured reviews of
+                            departmental R&amp;I activities</li>
+                        <li style="margin-bottom:2px;">Monitoring and evaluation of the periodic progress of Ph.D.
+                            faculty members</li>
+                        <li style="margin-bottom:2px;">Review and monitoring of externally funded, in-house research,
+                            and consultancy projects</li>
+                        <li style="margin-bottom:2px;">Coordination of affiliation, ranking, accreditation, and
+                            approval-related activities through IQAC (Nov 2025 to Mar 2026)</li>
+                        <li style="margin-bottom:2px;">Devising faculty appraisal mechanisms and coordinating,
+                            verifying, and ensuring their systematic implementation</li>
+                    </ol>
+
+                    <h4
+                        style="text-align:center; color:#b91c1c; font-weight:800; text-decoration:underline; font-size:0.95rem; margin:8px 0 4px 0;">
+                        Research Incentives & Support</h4>
+                    <ol start="18"
+                        style="margin:0 0 8px 0; padding-left:30px; font-size:0.8rem; color:#1e3a8a; line-height:1.3;">
+                        <li style="margin-bottom:2px;">Implementation of structured incentive administration and
+                            performance evaluation frameworks under <span
+                                style="font-weight:900; color:#1e3a8a;">RI1000, PRO600, SRO, and IP100</span></li>
+                        <li style="margin-bottom:2px;">Processing and administration of contingency grants to strengthen
+                            research infrastructure</li>
+                        <li style="margin-bottom:2px;">Establishment and advancement of the <span
+                                style="font-weight:900; color:#065f46;">IPR Cell</span> through in-house capacity
+                            building with adequate technical support</li>
+                        <li style="margin-bottom:2px;">Facilitating technology transfer, commercialization, and industry
+                            linkage for institutional research outcomes</li>
+                        <li style="margin-bottom:2px;">Enabling faculty-led start-ups for innovation grants and
+                            consultancy through mentoring, coordination and registration support</li>
+                        <li style="margin-bottom:2px;">Coordination of approval, monitoring, and review of faculty
+                            in-house R&amp;D projects</li>
+                        <li style="margin-bottom:2px;">Administration of revenue-sharing mechanisms for faculty
+                            consultancy activities</li>
+                    </ol>
+
+                    <h4
+                        style="text-align:center; color:#b91c1c; font-weight:800; text-decoration:underline; font-size:0.95rem; margin:8px 0 4px 0;">
+                        Research Communication & Publication</h4>
+                    <ol start="25"
+                        style="margin:0 0 8px 0; padding-left:30px; font-size:0.8rem; color:#1e3a8a; line-height:1.3;">
+                        <li style="margin-bottom:2px;">Publication of periodic faculty- and department-level R&amp;I
+                            performance review reports</li>
+                        <li style="margin-bottom:2px;">Development, maintenance, and regular updating of the <span
+                                style="font-weight:900; color:#065f46;">monthly research dashboard</span></li>
+                        <li style="margin-bottom:2px;">Periodic updating of research-related content on the
+                            institutional website</li>
+                        <li style="margin-bottom:2px;">Publication and circulation of the institutional <span
+                                style="font-weight:900; color:#065f46;">R&amp;I newsletter</span></li>
+                        <li style="margin-bottom:2px;">Proactive engagement with funding agencies and industries for
+                            opportunity identification, faculty assignment, proposal monitoring, and structured
+                            handholding of grant submissions</li>
+                        <li style="margin-bottom:2px;">Development and publication of standardized research process
+                            handbooks</li>
+                        <li style="margin-bottom:2px;">Design, implementation, and maintenance of R&amp;I process
+                            workflows, templates, and formats</li>
+                        <li style="margin-bottom:2px;">Creation, maintenance, and periodic updating of the <span
+                                style="font-weight:900; color:#065f46;">IRINS profile</span></li>
+                        <li style="margin-bottom:2px;">Preparation of comprehensive annual documentation of
+                            institutional R&amp;I activities</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="page-footer">
+                <span>1<sup>st</sup> Jan 2026 to 28<sup>th</sup> Mar 2026</span>
+                <span>MCET Research Dashboard</span>
+                <span>Page 19 of 20</span>
+            </div>
+        </div>
+
+        <!-- Page 14: Back Cover -->
+        <div class="report-page"
+            style="background:#fff1e6; position:relative; overflow:hidden; border:none; color:#333;">
+            <!-- Background circles -->
+            <div
+                style="position:absolute; width:400px; height:400px; border: 40px solid #f9d8c0; border-radius:50%; top:50px; right:50px; z-index:0; opacity:0.6;">
+            </div>
+            <div
+                style="position:absolute; width:600px; height:600px; border: 40px solid #f9d8c0; border-radius:50%; bottom:-200px; left:-100px; z-index:0; opacity:0.6;">
+            </div>
+
+            <!-- Top Right Logo -->
+            <div
+                style="position:absolute; top:20px; right:20px; background:white; padding:10px; border:1px solid #eee; z-index:2; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+                <img src="{% static 'images/mcet_logo_new.jpg' %}" alt="MCET Logo" style="height:90px; object-fit:contain; mix-blend-mode: multiply; filter: contrast(1.2) brightness(1.05); clip-path: inset(6% 0);">
+            </div>
+
+            <!-- Center Content -->
+            <div
+                style="position:relative; z-index:2; margin: 150px 30px 0 30px; background:white; padding:2rem 1rem; border-radius:10px; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                <h1
+                    style="text-align:center; color:#c62828; font-size:2.8rem; font-weight:900; margin-bottom:1.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                    Impacts of RI Initiatives</h1>
+
+                <div
+                    style="display:flex; justify-content:space-around; color:#1e3a8a; font-weight:800; font-size:1.1rem; margin-bottom:2rem; text-align:center;">
+                    <div style="width:45%;">Number of Indexed Publications<br>and Granted Patents</div>
+                    <div style="width:45%;">Number of Faculty Members<br>Received Incentives</div>
+                </div>
+
+                <div style="display:flex; justify-content:center; gap:2rem; align-items:flex-end;">
+                    <!-- Left Chart (Publications/Patents) -->
+                    <div
+                        style="width:45%; display:flex; flex-direction:column; gap:1.5rem; position:relative; padding-bottom:30px;">
+                        <!-- Custom CSS representation for the left chart data -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; position:relative;">
+                            <div
+                                style="width:60px; text-align:center; font-size:0.6rem; font-weight:800; border:2px solid #ea580c; border-radius:50%; padding:5px; color:#333; z-index:2; background: white;">
+                                Q1,SCIE<br>Scopus<br>Journals</div>
+                            <div style="height:2px; background:#ea580c; flex:1; margin: 0 -5px;"></div>
+
+                            <!-- Columns -->
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="font-size:0.7rem; font-weight:800; color:#ea580c; transform:rotate(-45deg); margin-bottom:10px;">
+                                    2021-2022</div>
+                                <div
+                                    style="width:40px; height:40px; background:#0ea5e9; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fef08a;">
+                                    53</div>
+                            </div>
+                            <div style="height:2px; background:#ea580c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="font-size:0.7rem; font-weight:800; color:#ea580c; transform:rotate(-45deg); margin-bottom:10px;">
+                                    2022-2023</div>
+                                <div
+                                    style="width:40px; height:40px; background:#ea580c; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fef08a;">
+                                    98</div>
+                            </div>
+                            <div style="height:2px; background:#ea580c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="font-size:0.7rem; font-weight:800; color:#ea580c; transform:rotate(-45deg); margin-bottom:10px;">
+                                    2023-2024</div>
+                                <div
+                                    style="width:40px; height:40px; background:#10b981; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fef08a;">
+                                    156</div>
+                            </div>
+                            <div style="height:2px; background:#ea580c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="font-size:0.7rem; font-weight:800; color:#ea580c; transform:rotate(-45deg); margin-bottom:10px;">
+                                    2024-2025</div>
+                                <div
+                                    style="width:40px; height:40px; background:#0ea5e9; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fef08a;">
+                                    182</div>
+                            </div>
+                        </div>
+
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; position:relative;">
+                            <div
+                                style="width:60px; text-align:center; font-size:0.6rem; font-weight:800; border:2px solid #b91c1c; border-radius:50%; padding:5px; color:#333; z-index:2; background: white;">
+                                Granted<br>Patents</div>
+                            <div style="height:2px; background:#b91c1c; flex:1; margin: 0 -5px;"></div>
+
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="width:40px; height:40px; background:#0ea5e9; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fca5a5;">
+                                    2</div>
+                            </div>
+                            <div style="height:2px; background:#b91c1c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="width:40px; height:40px; background:#ea580c; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fca5a5;">
+                                    11</div>
+                            </div>
+                            <div style="height:2px; background:#b91c1c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="width:40px; height:40px; background:#10b981; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fca5a5;">
+                                    36</div>
+                            </div>
+                            <div style="height:2px; background:#b91c1c; width:20px; margin: 0 -5px;"></div>
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div
+                                    style="width:40px; height:40px; background:#0ea5e9; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; border-radius:50%; z-index:2; border:3px solid #fca5a5;">
+                                    47</div>
+                            </div>
+                        </div>
+
+                        <!-- Stylized Curve graphic in background (faked via gradient/border) -->
+                        <div
+                            style="position:absolute; top:-20px; left:80px; right:10px; height:150px; background: linear-gradient(to top right, transparent 40%, #fecaca 50%, transparent 60%); z-index:0; opacity:0.5; pointer-events:none;">
+                        </div>
+                    </div>
+
+                    <!-- Right Chart (Vertical Arrows) -->
+                    <div
+                        style="width:45%; display:flex; justify-content:center; gap:5px; align-items:flex-end; padding-bottom:10px; position:relative;">
+                        <!-- Background large red arrow -->
+                        <div
+                            style="position:absolute; top:-60px; right:30px; width:150px; height:150px; background: linear-gradient(to top right, transparent 45%, #b91c1c 45%, #b91c1c 55%, transparent 55%); z-index:0;">
+                        </div>
+
+                        <!-- Column 1 -->
+                        <div style="display:flex; flex-direction:column; align-items:center; width:50px; z-index:1;">
+                            <div
+                                style="width: 0; height: 0; border-left: 25px solid transparent; border-right: 25px solid transparent; border-bottom: 30px solid #0284c7;">
+                            </div>
+                            <div
+                                style="width:30px; height:40px; background:#0284c7; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">
+                                25</div>
+                            <div
+                                style="font-size:0.5rem; font-weight:800; color:white; background:#c62828; width:100%; text-align:center; padding:2px 0;">
+                                2021-2022</div>
+                        </div>
+                        <!-- Column 2 -->
+                        <div style="display:flex; flex-direction:column; align-items:center; width:50px; z-index:1;">
+                            <div
+                                style="width: 0; height: 0; border-left: 25px solid transparent; border-right: 25px solid transparent; border-bottom: 30px solid #059669;">
+                            </div>
+                            <div
+                                style="width:30px; height:80px; background:#059669; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; font-size:1.2rem;">
+                                57</div>
+                            <div
+                                style="font-size:0.5rem; font-weight:800; color:white; background:#c62828; width:100%; text-align:center; padding:2px 0;">
+                                2022-2023</div>
+                        </div>
+                        <!-- Column 3 -->
+                        <div style="display:flex; flex-direction:column; align-items:center; width:60px; z-index:1;">
+                            <div
+                                style="width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-bottom: 40px solid #ea580c;">
+                            </div>
+                            <div
+                                style="width:40px; height:120px; background:#ea580c; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; font-size:1.5rem;">
+                                149</div>
+                            <div
+                                style="font-size:0.5rem; font-weight:800; color:white; background:#c62828; width:100%; text-align:center; padding:2px 0;">
+                                2023-2024</div>
+                        </div>
+                        <!-- Column 4 -->
+                        <div style="display:flex; flex-direction:column; align-items:center; width:60px; z-index:1;">
+                            <div
+                                style="width: 0; height: 0; border-left: 30px solid transparent; border-right: 30px solid transparent; border-bottom: 40px solid #0284c7;">
+                            </div>
+                            <div
+                                style="width:40px; height:160px; background:#0284c7; color:white; font-weight:900; display:flex; justify-content:center; align-items:center; font-size:1.5rem;">
+                                171</div>
+                            <div
+                                style="font-size:0.5rem; font-weight:800; color:white; background:#c62828; width:100%; text-align:center; padding:2px 0;">
+                                2024-2025</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Geometric Shape -->
+            <div
+                style="position:absolute; bottom:0; left:0; right:0; background:#d94a28; height:120px; z-index:2; display:flex; align-items:center; padding:0 3rem; justify-content:flex-end; color:white; font-weight:800; font-size:0.9rem; line-height:1.6; text-align:right; border-top-left-radius: 50px;">
+                <div>
+                    Office of Dean Research and Innovation<br>
+                    Dr. Mahalingam College of Engineering and Technology,<br>
+                    Pollachi &ndash; 642003<br>
+                    Web: https://drmcet.ac.in/<br>
+                    Email: deanri@drmcet.ac.in
+                </div>
+            </div>
+        </div>
+    {{ dept_data|json_script:"dept-data" }}
+    {{ leaders|json_script:"leaders-data" }}
+    {{ toppers|json_script:"toppers-data" }}
+    {{ cadre_stats|json_script:"cadre-stats-data" }}
+    {{ faculty_data|json_script:"faculty-data" }}
+    {{ summary|json_script:"summary-data" }}
+    </div>
+
+    <script nonce="{{ request.csp_nonce }}">
+        // Register ChartDataLabels globally as soon as the script block runs
+        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+            console.log('ChartDataLabels registered globally.');
+        } else {
+            console.warn('Chart.js or ChartDataLabels not available at script load time.');
+        }
+
+        let DEPT_DATA = [], LEADERS = [], TOPPERS = [], CADRE_STATS = [], FACULTY_DATA = [], SUMMARY = {};
+
+        // Declare shared DOM references at module scope so generateReport() can access them
+        let genBtn, printBtn, wrapper;
+
+        // Script is at bottom of body — DOM is ready, attach handlers directly
+        (function() {
+            console.log("MRPC Script Initializing...");
+            genBtn  = document.getElementById('gen-btn');
+            printBtn = document.getElementById('print-btn');
+            wrapper  = document.getElementById('report-wrapper');
+            if (genBtn) {
+                console.log("Found generate button, attaching listener");
+                genBtn.addEventListener('click', function() {
+                    console.log("Generate button clicked");
+                    generateReport();
+                });
+            } else {
+                console.warn("Generate button NOT found!");
+            }
+            if (printBtn) printBtn.addEventListener('click', function() { window.print(); });
+        })();
+
+        function generateReport() {
+            try {
+                const btnText = document.getElementById('btn-text');
+                const genIcon = document.getElementById('gen-icon');
+
+                // 1. Show Generating state
+                if (btnText) btnText.textContent = "Generating...";
+                if (genIcon) genIcon.style.display = "inline-block";
+                if (genBtn) genBtn.disabled = true;
+
+                // 2. Wait for 3 seconds as requested
+                setTimeout(() => {
+                    // Load Data
+                    try {
+                        DEPT_DATA = JSON.parse(document.getElementById('dept-data').textContent || '[]');
+                        LEADERS = JSON.parse(document.getElementById('leaders-data').textContent || '[]');
+                        TOPPERS = JSON.parse(document.getElementById('toppers-data').textContent || '[]');
+                        CADRE_STATS = JSON.parse(document.getElementById('cadre-stats-data').textContent || '[]');
+                        FACULTY_DATA = JSON.parse(document.getElementById('faculty-data').textContent || '[]');
+                        SUMMARY = JSON.parse(document.getElementById('summary-data').textContent || '{}');
+
+                        if (genBtn) genBtn.style.display = 'none';
+                        if (wrapper) {
+                            wrapper.style.display = 'block';
+                            console.log("Report wrapper displayed");
+                        } else {
+                            console.error("Report wrapper NOT found!");
+                        }
+                        if (printBtn) printBtn.style.display = 'flex';
+                        
+                        // CRITICAL: Use requestAnimationFrame so the browser completes
+                        // layout (reflow) after wrapper.style.display='block' before
+                        // Chart.js reads canvas dimensions. Without this, canvases
+                        // report 0 width and charts render invisible.
+                        requestAnimationFrame(function() {
+                            setTimeout(function() {
+                                try {
+                                    if (typeof Chart !== 'undefined') {
+                                        ['pubPie', 'iprPie', 'cadrePie', 'pubStackedBar', 'iprStackedBar', 
+                                         'profBar', 'aspBar', 'apsgBar', 'apssBar', 'apBar', 'cadrePieP14'].forEach(id => {
+                                            let chartInstance = Chart.getChart(id);
+                                            if (chartInstance) chartInstance.destroy();
+                                        });
+                                    }
+                                } catch(e) { console.error("Chart Destruction Error:", e); }
+                                try { populateTables(); } catch(e) { console.error("Table Error:", e); }
+                                try { if (typeof Chart !== 'undefined') initCharts(); } catch(e) { console.error("Chart Error:", e); }
+                                console.log("Generation Complete!");
+                            }, 50);
+                        });
+                    } catch (innerError) {
+                        console.error("Data Parsing Error:", innerError);
+                        alert("Data Error: " + innerError.message);
+                        if (genBtn) {
+                            genBtn.disabled = false;
+                            btnText.textContent = "Generate MRPC Report";
+                            genIcon.style.display = "none";
+                        }
+                    }
+                }, 3000);
+
+            } catch (e) {
+                console.error("Critical Generation Error:", e);
+                alert("Generation failed: " + e.message);
+            }
+        }
+
+        function populateTables() {
+            try {
+                // Table 2: Overall
+                const overallBody = document.getElementById('overallBody');
+                if (overallBody) {
+                    let o_fac = 0, o_pts = 0, o_fund = 0, o_amt = 0, o_jour = 0, o_bc = 0, o_pat = 0, o_des = 0, o_pat_g = 0, o_tot = 0;
+                    DEPT_DATA.forEach((d, i) => {
+                        let fac = d.fac || 1;
+                        let pts_f = (d.pts / fac).toFixed(1);
+                        o_fac += (d.fac || 0); o_pts += (d.pts || 0); o_fund += (d.fund || 0); o_amt += (d.amt || 0);
+                        o_jour += (d.jour || 0); o_bc += (d.bc || 0); o_pat += (d.pat || 0); o_des += (d.des || 0); o_pat_g += (d.pat_g || 0); o_tot += (d.total || 0);
+                        overallBody.innerHTML += `<tr>
+                            <td style="border:1px solid #000;">${i + 1}.</td>
+                            <td style="border:1px solid #000; text-align:left; font-weight:800; color:#1a2540;">${d.name}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.fac ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${pts_f}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.fund ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.amt ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.jour ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.bc ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.pat ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.des ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${d.pat_g ?? 0}</td>
+                            <td style="border:1px solid #000; font-weight:800; background:#ffe7d1;">${d.total ?? 0}</td>
+                        </tr>`;
+                    });
+                    const overallFoot = document.getElementById('overallFoot');
+                    if (overallFoot) {
+                        overallFoot.innerHTML = `<tr style="background:#fde68a; font-weight:900;">
+                            <td colspan="2" style="border:1px solid #000;">Total (Institute)</td>
+                            <td style="border:1px solid #000;">${o_fac}</td>
+                            <td style="border:1px solid #000;">${(o_pts / (o_fac || 1)).toFixed(1)}</td>
+                            <td style="border:1px solid #000;">${o_fund}</td>
+                            <td style="border:1px solid #000;">${o_amt.toFixed(1)}</td>
+                            <td style="border:1px solid #000;">${o_jour}</td>
+                            <td style="border:1px solid #000;">${o_bc}</td>
+                            <td style="border:1px solid #000;">${o_pat}</td>
+                            <td style="border:1px solid #000;">${o_des}</td>
+                            <td style="border:1px solid #000;">${o_pat_g || 0}</td>
+                            <td style="border:1px solid #000;">${o_tot.toFixed(1)}</td>
+                        </tr>`;
+                    }
+                }
+
+                // Table 3: Publications
+                const pubBody = document.getElementById('pubBody');
+                if (pubBody) {
+                    DEPT_DATA.forEach((d, i) => {
+                        pubBody.innerHTML += `<tr>
+                            <td style="border:1px solid #000;">${i + 1}.</td>
+                            <td style="border:1px solid #000; text-align:left; font-weight:800;">${d.name}</td>
+                            <td style="border:1px solid #000;">${d.q1 || '-'}</td>
+                            <td style="border:1px solid #000;">${d.scie || '-'}</td>
+                            <td style="border:1px solid #000;">${d.scopus || '-'}</td>
+                            <td style="border:1px solid #000;">${d.bc || '-'}</td>
+                            <td style="border:1px solid #000;">${d.conf || '-'}</td>
+                            <td style="border:1px solid #000;">${d.pts}</td>
+                            <td style="border:1px solid #000; background:#ffe7d1; font-weight:900;">${(d.q1 || 0) + (d.scie || 0) + (d.scopus || 0) + (d.bc || 0) + (d.conf || 0)}</td>
+                        </tr>`;
+                    });
+                }
+
+                // Table 4: IPR
+                const iprBody = document.getElementById('iprBody');
+                if (iprBody) {
+                    DEPT_DATA.forEach((d, i) => {
+                        let pts_per = d.fac > 0 ? (d.ipr_pts / d.fac).toFixed(1) : '0.0';
+                        iprBody.innerHTML += `<tr>
+                            <td style="border:1px solid #000;">${i + 1}.</td>
+                            <td style="border:1px solid #000; text-align:left; font-weight:800; color:#1a2540;">${d.name}</td>
+                            <td style="border:1px solid #000;">${d.pat_f || '-'}</td>
+                            <td style="border:1px solid #000;">${d.pat_g || '-'}</td>
+                            <td style="border:1px solid #000;">${d.des_f || '-'}</td>
+                            <td style="border:1px solid #000;">${d.des_r || '-'}</td>
+                            <td style="border:1px solid #000;">${d.cp_f || '-'}</td>
+                            <td style="border:1px solid #000;">${d.cp_r || '-'}</td>
+                            <td style="border:1px solid #000;">${d.cp_pts || '-'}</td>
+                            <td style="border:1px solid #000; font-weight:800;">${pts_per}</td>
+                            <td style="border:1px solid #000; background:#ffe7d1; font-weight:900;">${parseFloat(d.ipr_pts || 0).toFixed(1)}</td>
+                        </tr>`;
+                    });
+                }
+
+                // Table 5: Rank Body
+                const rankBody = document.getElementById('rankBody');
+                if (rankBody) {
+                    DEPT_DATA.forEach((d, i) => {
+                        let fac = d.fac > 0 ? d.fac : 1;
+                        rankBody.innerHTML += `<tr>
+                            <td style="border:1px solid #000; font-weight:800; color:#1a2540;">${d.name}</td>
+                            <td style="border:1px solid #000;">${(d.p_pts / fac).toFixed(1)}</td>
+                            <td style="border:1px solid #000;">${(d.ipr_pts / fac).toFixed(1)}</td>
+                            <td style="border:1px solid #000;">${(d.f_pts / fac).toFixed(1)}</td>
+                            <td style="border:1px solid #000;">${(d.c_pts / fac).toFixed(1)}</td>
+                            <td style="border:1px solid #000; font-weight:900; color:#b91c1c;">${(d.pts / fac).toFixed(1)}</td>
+                            <td style="border:1px solid #000; background:#ffe7d1; font-weight:900; font-size:1.1rem; color:#0e7490;">${d.rank || (i + 1)}</td>
+                        </tr>`;
+                    });
+                }
+
+                // Table 7: Cadre Breakdown
+                const cadreBody = document.getElementById('cadreFullBody');
+                if (cadreBody) {
+                    DEPT_DATA.forEach((d, i) => {
+                        const targets = [100, 88, 75, 63, 50];
+                        const earned = [d.prof_e || 0, d.asp_e || 0, d.apsg_e || 0, d.apss_e || 0, d.ap_e || 0];
+                        const gaps = earned.map((e, idx) => Math.max(0, targets[idx] - e));
+                        const totalEarned = earned.reduce((a, b) => a + b, 0);
+                        const totalGap = Math.max(0, 376 - totalEarned);
+
+                        cadreBody.innerHTML += `<tr>
+                            <td style="border:1px solid #000; font-weight:700;">${i + 1}.</td>
+                            <td style="border:1px solid #000; text-align:left; font-weight:800; color:#1a2540;">${d.name}</td>
+                            <td style="border:1px solid #000; font-weight:800; color:#0e7490;">${earned[0] || '-'}</td>
+                            <td style="border:1px solid #000; color:#b91c1c;">${gaps[0] || '-'}</td>
+                            <td style="border:1px solid #000; font-weight:800; color:#0e7490;">${earned[1] || '-'}</td>
+                            <td style="border:1px solid #000; color:#b91c1c;">${gaps[1] || '-'}</td>
+                            <td style="border:1px solid #000; font-weight:800; color:#0e7490;">${earned[2] || '-'}</td>
+                            <td style="border:1px solid #000; color:#b91c1c;">${gaps[2] || '-'}</td>
+                            <td style="border:1px solid #000; font-weight:800; color:#0e7490;">${earned[3] || '-'}</td>
+                            <td style="border:1px solid #000; color:#b91c1c;">${gaps[3] || '-'}</td>
+                            <td style="border:1px solid #000; font-weight:800; color:#0e7490;">${earned[4] || '-'}</td>
+                            <td style="border:1px solid #000; color:#b91c1c;">${gaps[4] || '-'}</td>
+                            <td style="border:1px solid #000; background:#fff7ed; font-weight:900;">${totalEarned.toFixed(1)}</td>
+                            <td style="border:1px solid #000; background:#fef2f2; font-weight:900; color:#b91c1c;">${totalGap.toFixed(1)}</td>
+                        </tr>`;
+                    });
+                }
+                // Page 14-16 Dept Cadre Bar Charts
+                const renderDeptBar = (id, cadre, target) => {
+                     const ctx = document.getElementById(id);
+                     if (!ctx) return;
+                     
+                     // 1. Filter departments having faculty of this cadre & map points using short codes
+                     const cadreDepts = DEPT_DATA.map(d => {
+                         const fs = FACULTY_DATA.filter(f => f.dept_code === d.code && f.cadre === cadre);
+                         if (fs.length === 0) return null; // exclude 0 faculty departments
+                         
+                         const avgEarned = parseFloat((fs.reduce((s, f) => s + (f.total || 0), 0) / fs.length).toFixed(1));
+                         const gap = Math.max(0, parseFloat((target - avgEarned).toFixed(1)));
+                         return { name: d.code, earned: avgEarned, gap: gap };
+                     }).filter(d => d !== null);
+
+                     // 2. Sort departments in descending order by earned points
+                     cadreDepts.sort((a, b) => b.earned - a.earned);
+
+                     const labels = cadreDepts.length > 0 ? cadreDepts.map(d => d.name) : ['No Data'];
+                     const earnedData = cadreDepts.length > 0 ? cadreDepts.map(d => d.earned) : [0];
+                     const gapData = cadreDepts.length > 0 ? cadreDepts.map(d => d.gap) : [target];
+
+                     new Chart(ctx, {
+                         type: 'bar',
+                         data: {
+                             labels: labels,
+                             datasets: [
+                                 { label: 'Earned', data: earnedData, backgroundColor: '#0000ff' },
+                                 { label: 'Gap', data: gapData, backgroundColor: '#ff0000' }
+                             ]
+                         },
+                         options: {
+                             responsive: true,
+                             maintainAspectRatio: false,
+                             animation: false,
+                             plugins: {
+                                 legend: { position: 'top', labels: { font: { size: 10, weight: 'bold' } } },
+                                 datalabels: {
+                                     color: '#000',
+                                     anchor: 'end',
+                                     align: 'top',
+                                     offset: -2,
+                                     rotation: -45,
+                                     font: { weight: 'bold', size: 8 },
+                                     formatter: (val) => val !== undefined ? val : ''
+                                 }
+                             },
+                             scales: {
+                                 x: { 
+                                     stacked: true, 
+                                     ticks: { 
+                                         font: { size: 8, weight: 'bold' },
+                                         maxRotation: 45,
+                                         minRotation: 45
+                                     } 
+                                 },
+                                 y: { stacked: true, ticks: { font: { size: 9 } } }
+                             }
+                         }
+                     });
+                 };
+                renderDeptBar('profBar', 'Professor', 100);
+                renderDeptBar('aspBar', 'Associate Professor', 88);
+                renderDeptBar('apsgBar', 'Assistant professor(SG)', 75);
+                renderDeptBar('apssBar', 'Assistant Professor (SS)', 63);
+                renderDeptBar('apBar', 'Assistant Professor', 50);
+
+                // Fig 9: Pie
+                const ctotals = ['Professor', 'Associate Professor', 'Assistant professor(SG)', 'Assistant Professor (SS)', 'Assistant Professor'].map(c =>
+                    FACULTY_DATA.filter(f => f.cadre === c).reduce((s, f) => s + (f.total || 0), 0)
+                );
+                const p14canv = document.getElementById('cadrePieP14');
+                if (p14canv) new Chart(p14canv, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Prof', 'Asso. Prof', 'AP(SG)', 'AP(SS)', 'AP'],
+                        datasets: [{ data: ctotals, backgroundColor: ['#2d862d', '#a8d08d', '#ffc000', '#ff0000', '#ed7d31'] }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: '900', size: 12 },
+                                formatter: (val) => val > 0 ? Math.round(val) : ''
+                            }
+                        }
+                    }
+                });
+
+                // Leaderboard & Toppers
+                const lb = document.getElementById('leaderBoard');
+                if (lb) {
+                    let displayRank = 1;
+                    let prevTotal = -1;
+                    LEADERS.forEach((l, i) => {
+                        let total = Math.round(l.total);
+                        if (total !== prevTotal) {
+                            displayRank = i + 1;
+                            prevTotal = total;
+                        }
+                        let fc_pts = Math.round((l.f_pts || 0) + (l.c_pts || 0));
+                        lb.innerHTML += `<tr style="background:${i % 2 !== 0 ? '#f8fafc' : '#ffffff'};">
+                            <td style="border:1px solid #000; padding:8px; font-weight:800; color:#1e3a8a;">${i + 1}.</td>
+                            <td style="border:1px solid #000; padding:8px; text-align:left; font-weight:800; color:#1e3a8a;">${l.name} / ${l.dept}</td>
+                            <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${Math.round(l.p_pts) || '-'}</td>
+                            <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${Math.round(l.ipr_pts) || '-'}</td>
+                            <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${fc_pts || '-'}</td>
+                            <td style="border:1px solid #000; padding:8px; font-weight:900; color:#1e3a8a;">${total || '-'}</td>
+                            <td style="border:1px solid #000; padding:8px; font-weight:900; color:#065f46;">${displayRank}</td>
+                        </tr>`;
+                    });
+                }
+                const dt = document.getElementById('deptToppers');
+                if (dt) TOPPERS.forEach((t, i) => {
+                    let fc_pts = Math.round((t.f_pts || 0) + (t.c_pts || 0));
+                    dt.innerHTML += `<tr style="background:${i % 2 !== 0 ? '#f8fafc' : '#ffffff'};">
+                        <td style="border:1px solid #000; padding:8px; font-weight:800; color:#1e3a8a;">${i + 1}.</td>
+                        <td style="border:1px solid #000; padding:8px; text-align:left; font-weight:800; color:#1e3a8a;">${t.name} / ${t.dept}</td>
+                        <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${Math.round(t.p_pts) || '-'}</td>
+                        <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${Math.round(t.ipr_pts) || '-'}</td>
+                        <td style="border:1px solid #000; padding:8px; font-weight:800; color:#065f46;">${fc_pts || '-'}</td>
+                        <td style="border:1px solid #000; padding:8px; font-weight:900; color:#1e3a8a;">${t.total || '-'}</td>
+                    </tr>`;
+                });
+
+            } catch (err) {
+                console.error("populateTables failure:", err);
+            }
+        }
+
+        function initCharts() {
+            try {
+                // Register the datalabels plugin globally if available
+            // Register ChartDataLabels (safe to call again, idempotent)
+            if (typeof ChartDataLabels !== 'undefined') {
+                try { Chart.register(ChartDataLabels); } catch(e) { /* already registered */ }
+            } else {
+                console.warn("ChartDataLabels plugin not found.");
+            }
+
+                // Pub Pie
+                const pubData = [SUMMARY.q1 || 0, SUMMARY.scie || 0, SUMMARY.scopus || 0, SUMMARY.bc || 0, SUMMARY.conf || 0];
+            const pubEmpty = pubData.every(v => v === 0);
+            const pPie = document.getElementById('pubPie');
+            if (pPie) new Chart(pPie, {
+                type: 'doughnut',
+                data: {
+                    labels: pubEmpty ? ['No Data'] : ['Q1', 'SCIE', 'Scopus', 'BC', 'Conf'],
+                    datasets: [{
+                        data: pubEmpty ? [1] : pubData,
+                        backgroundColor: pubEmpty ? ['#e2e8f0'] : ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99']
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { filter: () => !pubEmpty },
+                        datalabels: {
+                            color: '#fff',
+                            anchor: 'center',
+                            align: 'center',
+                            font: { weight: '900', size: 14 },
+                            formatter: (val) => (val > 0 && !pubEmpty) ? val : ''
+                        }
+                    }
+                }
+            });
+
+            // IPR Pie
+            const iprData = [SUMMARY.pat_f || 0, SUMMARY.pat_g || 0, SUMMARY.des || 0, SUMMARY.cp || 0];
+        const iprEmpty = iprData.every(v => v === 0);
+        const iPie = document.getElementById('iprPie');
+        if (iPie) new Chart(iPie, {
+            type: 'pie',
+            data: {
+                labels: iprEmpty ? ['No Data'] : ['Pat. Filed', 'Pat. Grant', 'Design', 'Copyright'],
+                datasets: [{
+                    data: iprEmpty ? [1] : iprData,
+                    backgroundColor: iprEmpty ? ['#e2e8f0'] : ['#1f78b4', '#33a02c', '#9467bd', '#e377c2']
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'right' },
+                    tooltip: { filter: () => !iprEmpty },
+                    datalabels: {
+                        color: '#fff',
+                        anchor: 'center',
+                        align: 'center',
+                        font: { weight: '900', size: 14 },
+                        formatter: (val) => (val > 0 && !iprEmpty) ? val : ''
+                    }
+                }
+            }
+        });
+
+
+
+        const cP = document.getElementById('cadrePie');
+        if (cP) new Chart(cP, {
+            type: 'pie',
+            data: {
+                labels: CADRE_STATS.map(s => s.label),
+                datasets: [{ data: CADRE_STATS.map(s => s.val), backgroundColor: ['#1e40af', '#E87722', '#166534', '#a3e635', '#a855f7'] }]
+            },
+            options: {
+                plugins: {
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: 'bold' },
+                        formatter: (val) => val > 0 ? Math.round(val) : ''
+                    }
+                }
+            }
+        });
+
+        // Heatmap logic
+        function heatColor(val, maxVal) {
+            if (!val) return '#f8fafc';
+            const ratio = Math.min(val / maxVal, 1);
+            const alpha = 0.1 + (ratio * 0.9);
+            return `rgba(8, 48, 107, ${alpha})`;
+        }
+
+        function renderHeatmap(containerId, keys, maxVal) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            DEPT_DATA.forEach(d => {
+                container.innerHTML += `<div style="background:#f8fafc; border:1px solid #ddd; font-size:0.6rem; font-weight:800; display:flex; align-items:center; justify-content:center;">${d.name}</div>`;
+                keys.forEach(k => {
+                    let val = d[k] || 0;
+                    if (k === 'p_pts_f') val = d.fac > 0 ? d.p_pts / d.fac : 0;
+                    if (k === 'ipr_pts_f') val = d.fac > 0 ? d.ipr_pts / d.fac : 0;
+                    if (k === 'f_pts_f') val = d.fac > 0 ? d.f_pts / d.fac : 0;
+                    if (k === 'c_pts_f') val = d.fac > 0 ? d.c_pts / d.fac : 0;
+                    if (k === 'pts_per_fac') val = d.pts_per_fac || 0;
+
+                    let color = heatColor(val, maxVal);
+                    let displayVal = Number.isInteger(val) ? val : parseFloat(val).toFixed(1);
+                    // Keep 0 visible in heatmaps
+                    container.innerHTML += `<div style="background:${color}; border:1px solid #ddd; font-size:0.6rem; font-weight:600; color:${val > (maxVal / 2) ? 'white' : '#333'}; display:flex; align-items:center; justify-content:center; min-height:25px;">${displayVal}</div>`;
+                });
+            });
+        }
+
+        renderHeatmap('pubHeatmap', ['q1', 'scie', 'scopus', 'bc', 'conf'], 20);
+        renderHeatmap('iprHeatmap', ['pat_f', 'pat_g', 'des_f', 'des_r', 'cp_f', 'cp_r'], 10);
+        renderHeatmap('rankHeatmap', ['p_pts_f', 'ipr_pts_f', 'f_pts_f', 'c_pts_f', 'pts_per_fac'], 60);
+
+        // Stacked Bars
+        const dnCharts = DEPT_DATA.map(d => d.code);
+        const pBar = document.getElementById('pubStackedBar');
+        if (pBar) new Chart(pBar, {
+            type: 'bar',
+            data: {
+                labels: dnCharts,
+                datasets: [
+                    { label: 'Q1', data: DEPT_DATA.map(d => d.q1), backgroundColor: '#a6cee3' },
+                    { label: 'SCIE', data: DEPT_DATA.map(d => d.scie), backgroundColor: '#1f78b4' },
+                    { label: 'Scopus', data: DEPT_DATA.map(d => d.scopus), backgroundColor: '#b2df8a' },
+                    { label: 'BC', data: DEPT_DATA.map(d => d.bc), backgroundColor: '#33a02c' },
+                    { label: 'Conf', data: DEPT_DATA.map(d => d.conf), backgroundColor: '#fb9a99' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true } },
+                plugins: {
+                    datalabels: {
+                        color: '#333',
+                        anchor: 'center',
+                        align: 'center',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (val) => val > 0 ? val : ''
+                    }
+                }
+            }
+        });
+
+        const iBar = document.getElementById('iprStackedBar');
+        if (iBar) new Chart(iBar, {
+            type: 'bar',
+            data: {
+                labels: dnCharts,
+                datasets: [
+                    { label: 'Pat_Filed', data: DEPT_DATA.map(d => d.pat_f), backgroundColor: '#1f78b4' },
+                    { label: 'Pat_Grant', data: DEPT_DATA.map(d => d.pat_g), backgroundColor: '#33a02c' },
+                    { label: 'Design', data: DEPT_DATA.map(d => (d.des_f || 0) + (d.des_r || 0)), backgroundColor: '#9467bd' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true } },
+                plugins: {
+                    datalabels: {
+                        color: '#333',
+                        anchor: 'center',
+                        align: 'center',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (val) => val > 0 ? val : ''
+                    }
+                }
+            }
+        });
+            } catch (err) {
+            console.error("initCharts failure:", err);
+        }
+        }
+        // Removed redundant listeners, handled by data-click in base.html
+    </script>
+</body>
+
+</html>

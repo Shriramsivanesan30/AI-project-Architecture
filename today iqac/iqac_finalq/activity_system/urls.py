@@ -1,0 +1,31 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('submit/', views.submit_activity, name='submit_activity'),
+    path('activity/<int:pk>/', views.activity_detail, name='activity_detail'),
+    path('approve/<int:pk>/<str:action>/', views.approve_activity, name='approve_activity'),
+    path('export/', views.export_activities, name='export_activities'),
+    path('api/sheet-config/', views.api_sheet_config, name='api_sheet_config'),
+    path('set-department-target/', views.set_department_target, name='set_department_target'),
+    path('set-faculty-target/', views.set_faculty_target, name='set_faculty_target'),
+    path('manage-users/', views.manage_users, name='manage_users'),
+    path('reset-password/<str:username>/', views.reset_password, name='reset_password'),
+    path('change-password/', views.change_password, name='change_password'),
+    path('api/faculty-profile/<str:username>/', views.get_faculty_profile, name='api_faculty_profile'),
+    path('upload-profile-picture/', views.upload_profile_picture, name='upload_profile_picture'),
+    path('self-appraisal/', views.self_appraisal_report, name='self_appraisal'),
+    path('faculty-profile/<str:username>/', views.faculty_profile, name='faculty_profile'),
+    path('department-exports/', views.department_exports, name='department_exports'),
+    path('update-department-name/', views.update_department_name, name='update_department_name'),
+    path('mrpc-report/', views.mrpc_report, name='mrpc_report'),
+    path('switch-role/<str:role>/', views.switch_role, name='switch_role'),
+    path('dean-assign-research/', views.dean_assign_research, name='dean_assign_research'),
+    path('dean-mrpc-report/', views.dean_mrpc_report, name='dean_mrpc_report'),
+    path('api/target-status/', views.get_target_status, name='get_target_status'),
+    path('api/target-html/', views.get_target_html, name='get_target_html'),
+]

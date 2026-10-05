@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ target_user.get_display_name }} - Profile{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 12px;">
+            <div class="card-body p-0">
+                <div class="bg-primary p-4 text-white d-flex align-items-center">
+                        {% if target_user.profile_picture %}
+                            <div class="profile-photo-container">
+                                <img src="{{ target_user.profile_picture.url }}" class="shadow-lg" style="width:120px; height:120px; object-fit:cover; object-position: top; border-radius: 20px; border: 4px solid white;">
+                            </div>
+                        {% else %}
+                            <div class="shadow-lg bg-white text-primary d-flex align-items-center justify-content-center" style="width:120px; height:120px; font-size:3.5rem; font-weight:700; border-radius: 20px; border: 4px solid white;">
+                                {{ target_user.get_display_name|slice:":1" }}
+                            </div>
+                        {% endif %}
+                    <div>
+                        <h2 class="mb-3 fw-bold" style="line-height: 1.2;">{{ target_user.get_display_name }}</h2>
+                        <div class="opacity-75" style="line-height: 1.8; font-size: 1rem; margin-top: 0.5rem;">
+                            <i class="fas fa-id-badge me-1"></i> <span style="letter-spacing: 0.5px;">{{ target_user.username }}</span> &nbsp;&bull;&nbsp; 
+                            <i class="fas fa-building me-1"></i> {{ target_user.department }} &nbsp;&bull;&nbsp;
+                            <i class="fas fa-user-tag me-1"></i> {{ target_user.cadre|default:"Faculty" }}
+                        </div>
+                    </div>
+                    <div class="ms-auto text-end">
+                        <div class="bg-white text-primary px-4 py-2 rounded-pill shadow-sm">
+                            <span class="small d-block text-uppercase fw-bold" style="letter-spacing:1px; font-size:0.6rem;">Total Points</span>
+                            <span class="fs-3 fw-bold"><i class="fas fa-gem me-1" style="color: #e8420a; font-size: 0.8em; opacity: 0.9; vertical-align: middle;"></i>{{ total_points }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Points Breakdown -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0 fw-bold">Points Breakdown (Academic Year)</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="d-flex justify-content-between mb-1">
+                        <span>Research</span>
+                        <span class="fw-bold">{{ points_by_category.Research|floatformat:1 }}</span>
+                    </label>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: {{ points_by_category.Research }}%"></div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="d-flex justify-content-between mb-1">
+                        <span>Faculty Development</span>
+                        <span class="fw-bold">{{ points_by_category.Faculty_Development|default:points_by_category.Faculty_Development|floatformat:1 }}</span>
+                    </label>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-info" style="width: {{ points_by_category.Faculty_Development }}%"></div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="d-flex justify-content-between mb-1">
+                        <span>Industrial Relationship</span>
+                        <span class="fw-bold">{{ points_by_category.Industrial_Relationship|floatformat:1 }}</span>
+                    </label>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" style="width: {{ points_by_category.Industrial_Relationship }}%"></div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="d-flex justify-content-between mb-1">
+                        <span>Student Activity</span>
+                        <span class="fw-bold">{{ points_by_category.Student_Activity|floatformat:1 }}</span>
+                    </label>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" style="width: {{ points_by_category.Student_Activity }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="d-flex justify-content-between mb-1">
+                        <span>Association</span>
+                        <span class="fw-bold">{{ points_by_category.Association|floatformat:1 }}</span>
+                    </label>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-secondary" style="width: {{ points_by_category.Association }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">Activity Progress</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Activity / Sheet</th>
+                                <th>Year</th>
+                                <th>Points</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for act in activities %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ act.sheet_name }}</div>
+                                    <div class="small text-muted">{{ act.title|truncatechars:50 }}</div>
+                                </td>
+                                <td>{{ act.academic_year }}</td>
+                                <td class="fw-bold text-primary">
+                                    {% if act.status == 'IQAC_APPROVED' %}
+                                        {{ act.awarded_points|default:"0" }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {{ act.get_status_badge }} px-2 py-1">
+                                        {{ act.get_status_icon }} {{ act.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">No activities recorded yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

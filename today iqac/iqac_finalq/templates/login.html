@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — MCET NAAC Activity System</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+  <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.png' %}">
+  <style>
+    /* ── Login Page Override ── */
+    body { background: #F8F5F2; }
+
+    .login-wrapper {
+      min-height: 100vh;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #FDE8E0 0%, #F8F5F2 50%, #FFF3EE 100%);
+    }
+
+    .login-card {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(232,66,10,.12), 0 4px 20px rgba(0,0,0,.08);
+      display: flex;
+      overflow: hidden;
+      width: 100%;
+      max-width: 900px;
+      min-height: 540px;
+    }
+
+    /* Left panel — white with logo + dept pills */
+    .login-left {
+      width: 45%;
+      background: #fff;
+      border-right: 1px solid #F0E8E4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2.5rem;
+    }
+
+    /* Logo container with orange spinning ring */
+    .logo-ring-wrapper {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.8rem;
+    }
+
+    /* Spinning orange ring */
+    .logo-ring-wrapper::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 4px solid transparent;
+      border-top-color: #E8420A;
+      border-right-color: #E8420A;
+      animation: spinRing 2.5s linear infinite;
+    }
+
+    /* Static outer track ring */
+    .logo-ring-wrapper::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 4px solid #FDE8E0;
+    }
+
+    @keyframes spinRing {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .logo-ring-inner {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      padding: 12px;
+    }
+
+    .logo-ring-inner img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .login-college-name {
+      font-size: .78rem;
+      font-weight: 700;
+      color: #5C4033;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .3rem;
+    }
+    .login-tagline-sub {
+      font-size: .72rem;
+      color: #999;
+      text-align: center;
+      font-style: italic;
+      margin-bottom: 1.8rem;
+    }
+
+    /* Dept pills — light style */
+    .dept-wheel {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .4rem;
+      max-width: 280px;
+    }
+    .dept-pill {
+      background: #FDE8E0;
+      border: 1px solid #F5C4B0;
+      color: #E8420A;
+      border-radius: 100px;
+      padding: .25rem .7rem;
+      font-size: .7rem;
+      font-weight: 700;
+      animation: pillPulse 3s ease-in-out infinite;
+    }
+    .dept-pill:nth-child(2n)  { animation-delay: .5s; }
+    .dept-pill:nth-child(3n)  { animation-delay: 1s; }
+    .dept-pill:nth-child(4n)  { animation-delay: 1.5s; }
+    @keyframes pillPulse {
+      0%, 100% { opacity: .7; transform: scale(1); }
+      50%       { opacity: 1;  transform: scale(1.05); }
+    }
+
+    /* Right panel — form */
+    .login-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2.5rem;
+      background: #FAFAFA;
+    }
+
+    .login-form-box { width: 100%; max-width: 360px; }
+
+    .login-form-box .welcome-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #E8420A, #FF7A45);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 6px 20px rgba(232,66,10,.3);
+    }
+    .login-form-box h1 {
+      font-size: 1.5rem; font-weight: 800;
+      color: #1A1A2E; margin-bottom: .3rem;
+    }
+    .login-form-box .sub {
+      font-size: .85rem; color: #7A7A8C; margin-bottom: 1.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .login-card { flex-direction: column; }
+      .login-left  { width: 100%; border-right: none; border-bottom: 1px solid #F0E8E4; padding: 2rem; }
+      .login-right { padding: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrapper">
+  <div class="login-card fade-in">
+
+    <!-- Left: Branding -->
+    <div class="login-left">
+
+      <!-- Logo with spinning orange ring -->
+      <div class="logo-ring-wrapper">
+        <div class="logo-ring-inner">
+          <img src="{% static 'images/logo.png' %}" alt="MCET Logo" id="login-logo">
+          <script nonce="{{ request.csp_nonce }}">
+            document.getElementById('login-logo').onerror = function() {
+              this.outerHTML='<span style="font-weight:900;font-size:1.2rem;color:#E8420A;">MCET</span>';
+            };
+          </script>
+        </div>
+      </div>
+
+      <div class="login-college-name">Dr. Mahalingam College of<br>Engineering and Technology</div>
+      <div class="login-tagline-sub">Enlightening Technical Minds</div>
+
+      <!-- Department Pills -->
+      <div class="dept-wheel">
+        {% for code, name in departments %}
+        <span class="dept-pill">{{ code }}</span>
+        {% endfor %}
+      </div>
+
+    </div>
+
+    <!-- Right: Login Form -->
+    <div class="login-right">
+      <div class="login-form-box">
+
+        <div class="welcome-icon">
+          <i class="fas fa-graduation-cap" style="color:#fff;font-size:1.3rem;"></i>
+        </div>
+        <h1>Welcome back</h1>
+        <p class="sub">Sign in to MCET NAAC Activity Portal</p>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}error{% else %}info{% endif %}">
+              <i class="fas fa-exclamation-circle"></i> {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="username">
+              <i class="fas fa-user" style="color:var(--orange-500);margin-right:.4rem;"></i>Username
+            </label>
+            <input type="text" name="username" id="username" placeholder="Enter your username" required autofocus>
+          </div>
+          <div class="form-group">
+            <label for="password">
+              <i class="fas fa-lock" style="color:var(--orange-500);margin-right:.4rem;"></i>Password
+            </label>
+            <input type="password" name="password" id="password" placeholder="Enter your password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:.5rem;justify-content:center;">
+            <i class="fas fa-sign-in-alt"></i> Sign In
+          </button>
+        </form>
+
+        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:.76rem;color:var(--text-muted);text-align:center;">
+          Contact your department SPOC or IT admin for account access.
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script nonce="{{ request.csp_nonce }}" src="{% static 'js/main.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MCET NAAC Activity System{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=1.3">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+        crossorigin="anonymous" 
+        referrerpolicy="no-referrer">
+  <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+  <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.png' %}">
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<!-- ─── SIDEBAR ─── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div style="position: relative; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 15px rgba(232, 66, 10, 0.4); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; width: 140px; height: 62px; padding: 2px;">
+      <img src="{% static 'images/mcet_logo_new.jpg' %}" alt="MCET Logo" 
+           style="width: 100%; height: 100%; object-fit: contain; filter: brightness(1.1) contrast(1.1) !important;"
+           id="topbar-logo">
+      <script nonce="{{ request.csp_nonce }}">
+        document.getElementById('topbar-logo').addEventListener('error', function() {
+          this.parentElement.style.display='none';
+          this.parentElement.nextElementSibling.style.display='block';
+        });
+      </script>
+      <!-- Thinner masks to avoid cutting off the 'C' while still hiding the separator lines -->
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #ffffff;"></div>
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 10px; background: #ffffff;"></div>
+    </div>
+    <div style="display:none;font-family:'Poppins',sans-serif;font-size:1.1rem;font-weight:800;color:#fff;">MCET</div>
+    <span class="dept-badge">{{ user.department }}</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Navigation</div>
+    <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <i class="fas fa-th-large"></i> Dashboard
+    </a>
+
+    {% if active_role == 'FACULTY' %}
+    <div class="sidebar-section-label">Submit Activity</div>
+    <a href="{% url 'submit_activity' %}?cat=Faculty+Development" class="sidebar-link">
+      <i class="fas fa-chalkboard-teacher"></i> Faculty Development
+    </a>
+    <a href="{% url 'submit_activity' %}?cat=Research" class="sidebar-link">
+      <i class="fas fa-flask"></i> Research
+    </a>
+    <a href="{% url 'submit_activity' %}?cat=Student+Activity" class="sidebar-link">
+      <i class="fas fa-users"></i> Student Activity
+    </a>
+    <a href="{% url 'submit_activity' %}?cat=Industrial+Relationship" class="sidebar-link">
+      <i class="fas fa-industry"></i> Industrial Relationship
+    </a>
+    <a href="{% url 'submit_activity' %}?cat=Association" class="sidebar-link">
+      <i class="fas fa-handshake"></i> Association
+    </a>
+    <div class="sidebar-section-label" style="margin-top:1rem;">Reports</div>
+    <a href="{% url 'dashboard' %}#completed-targets" class="sidebar-link" id="sidebar-completed-link">
+      <i class="fas fa-check-double"></i> Completed Targets
+    </a>
+    <div class="sidebar-section-label" style="margin-top:1rem;">Self Report</div>
+    <a href="{% url 'self_appraisal' %}" class="sidebar-link">
+      <i class="fas fa-file-invoice"></i> Self-Appraisal Analysis
+    </a>
+    <div class="sidebar-section-label" style="margin-top:1rem;">Research Progress</div>
+    <a href="{% url 'mrpc_report' %}" class="sidebar-link {% if request.resolver_match.url_name == 'mrpc_report' %}active{% endif %}">
+      <i class="fas fa-file-contract"></i> MRPC Report (RI 600)
+    </a>
+    {% endif %}
+    {% if active_role == 'DEAN_RI' %}
+    <div class="sidebar-section-label">R&I Oversight</div>
+    <a href="{% url 'dean_assign_research' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dean_assign_research' %}active{% endif %}">
+      <i class="fas fa-bullseye"></i> Assign Research Work
+    </a>
+    <a href="{% url 'dean_mrpc_report' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dean_mrpc_report' %}active{% endif %}">
+      <i class="fas fa-file-pdf"></i> MRPC Research Report
+    </a>
+    {% endif %}
+
+    {% if active_role == 'IQAC' %}
+    <div class="sidebar-section-label">Export & Reports</div>
+    <a href="{% url 'department_exports' %}" class="sidebar-link">
+      <i class="fas fa-file-download"></i> Department Exports
+    </a>
+    <a href="{% url 'export_activities' %}" class="sidebar-link">
+      <i class="fas fa-file-excel"></i> Export All (Excel)
+    </a>
+    {% endif %}
+
+    {% if active_role in 'HOD,IQAC,SPOC' %}
+    <a href="javascript:void(0)" id="sidebar-points-matrix" class="sidebar-link">
+      <i class="fas fa-table"></i> Points Matrix
+    </a>
+    <a href="javascript:void(0)" id="sidebar-toggle-metrics" class="sidebar-link">
+      <i class="fas fa-chart-line"></i> NAAC Metrics
+    </a>
+    <a href="{% url 'manage_users' %}" class="sidebar-link {% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}">
+      <i class="fas fa-users-cog"></i> {% if active_role == 'HOD' %}Manage Faculties{% else %}User Management{% endif %}
+    </a>
+    {% if active_role == 'HOD' %}
+    <a href="{% url 'dashboard' %}#completed-targets-area" onclick="if(window.location.pathname.includes('approval')){ setTimeout(() => { const area=document.getElementById('completed-targets-area'); if(area && area.style.display==='none') toggleCompletedTargets(); }, 100); }" class="sidebar-link">
+      <i class="fas fa-tasks"></i> Completed Tasks
+    </a>
+    {% endif %}
+    {% endif %}
+  </nav>
+
+</aside>
+
+<!-- Sidebar overlay (mobile only) -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+{% endif %}
+
+<!-- ─── MAIN CONTENT (always rendered, sidebar shifts it via CSS) ─── -->
+<main class="main-content" {% if not user.is_authenticated %}style="margin-left:0;"{% endif %}>
+
+  {% if user.is_authenticated %}
+  <header class="topbar">
+    <div>
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <!-- Hamburger: only visible on mobile -->
+        <button class="hamburger-btn" id="sidebar-hamburger" aria-label="Open menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="topbar-title">{% block topbar_title %}MCET NAAC Activity Portal{% endblock %}</div>
+      </div>
+      <div class="topbar-subtitle">
+        Dr. Mahalingam College of Engineering and Technology
+        &nbsp;|&nbsp;
+        <i class="far fa-clock"></i> <span id="running-time" style="font-weight: 700; color: var(--orange-500); font-variant-numeric: tabular-nums;"></span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-actions">
+        {% block topbar_actions %}{% endblock %}
+      </div>
+
+      <!-- ── Topbar Profile Card ── -->
+      <div class="topbar-profile-card">
+        <div class="topbar-profile-info">
+          <div class="topbar-profile-name">{{ user.get_display_name }}</div>
+          <div class="topbar-profile-role" style="line-height: 1.2;">
+            {% if user.role == 'DEAN_RI' %}
+              <div style="font-weight: 800; color: var(--mcet-brown);">Dean R & I</div>
+              <div style="font-size: 0.65rem; opacity: 0.8;">{% if user.cadre %}{{ user.cadre }}{% else %}Professor{% endif %} &middot; {{ user.department }}</div>
+            {% elif user.role != 'IQAC' %}
+              {% if user.cadre %}{{ user.cadre }}{% else %}Cadre Not Set{% endif %} &middot; {{ user.department }}
+            {% endif %}
+          </div>
+          {% if user.role == 'FACULTY' %}
+          <div class="topbar-profile-pts">
+            <i class="fas fa-gem" style="color:#fbbf24; font-size:.6rem;"></i>
+            <span>{{ user.get_total_points|floatformat:1 }} PTS</span>
+          </div>
+          {% endif %}
+        </div>
+        <div class="topbar-avatar" id="topbar-avatar" title="View Profile">
+          {% if user.profile_picture %}
+            <img src="{{ user.profile_picture.url }}" alt="Profile">
+          {% else %}
+            <span>{{ user.get_display_name|first|upper }}</span>
+          {% endif %}
+        </div>
+        <form id="topbar-upload-form" method="POST" action="{% url 'upload_profile_picture' %}" enctype="multipart/form-data" style="display:none;">
+          {% csrf_token %}
+          <input type="file" id="topbar-pic-input" name="profile_pic" accept="image/*">
+        </form>
+        <a href="javascript:void(0)" id="btn-logout" class="topbar-logout-btn" title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <div class="page-content fade-in">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+          <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'success' %}fa-check-circle{% else %}fa-info-circle{% endif %}"></i>
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+</main>
+
+<!-- Points Matrix Modal -->
+<div id="pointsMatrixModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; width:90%; max-width:800px; border-radius:12px; max-height:85vh; overflow-y:auto; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff;">
+      <h3 style="margin:0; color:#92400e; font-weight:800;">Research Performance Points (RPP) Matrix</h3>
+      <button id="close-points-matrix" style="background:none; border:none; font-size:1.8rem; cursor:pointer; line-height:1; color:#64748b;">&times;</button>
+    </div>
+    <div style="padding:1.5rem;">
+      <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem; margin-top:0;">
+        Reference matrix for automatically calculated and manual points mapping based on Institutional Guidelines.
+      </p>
+      <table style="width:100%; border-collapse:collapse; font-size:0.85rem; border:1px solid #e2e8f0;">
+        <thead style="background:#f8fafc;">
+          <tr>
+            <th style="padding:.75rem; border:1px solid #e2e8f0; text-align:left;">S.No.</th>
+            <th style="padding:.75rem; border:1px solid #e2e8f0; text-align:left;">Category</th>
+            <th style="padding:.75rem; border:1px solid #e2e8f0; text-align:left;">Points (Divided by Contributors)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;" rowspan="4">1</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">Journal Paper Publications</td><td></td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">(A) Q1 / AHCI Journal</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">100</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">(B) SCIE Journal</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">60</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">(C) Scopus Indexed Journal</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">40</td></tr>
+          
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;" rowspan="2">2</td><td style="padding:.75rem; border:1px solid #e2e8f0;">(A) Utility Patent Filing / Publication</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">20</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">(B) Design & Copyright Registration</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">10</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">3</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">Utility Patent Grant</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">100</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">4</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">Technology Transfer</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">100</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">5</td><td style="padding:.75rem; border:1px solid #e2e8f0;">External Funding / Consultancy</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">10 pts per ₹1 Lakh</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">6</td><td style="padding:.75rem; border:1px solid #e2e8f0;">Scopus Conference / Book Chapter</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">20</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">7</td><td style="padding:.75rem; border:1px solid #e2e8f0;">Organizing Scopus Int. Conference</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">100</td></tr>
+          <tr><td style="padding:.75rem; border:1px solid #e2e8f0;">8</td><td style="padding:.75rem; border:1px solid #e2e8f0;">Ph.D. Completion / Synopsis Submission</td><td style="padding:.75rem; border:1px solid #e2e8f0; font-weight:700;">40</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:1.5rem; font-size:0.85rem; background:#fff7ed; padding:1.2rem; border-radius:8px; border-left:4px solid var(--orange-500);">
+        <strong><i class="fas fa-info-circle"></i> Point Sharing Rule:</strong><br>For any activity involving more than one MCET faculty member, the total points specified for that activity shall be divided equally among the number of MCET contributors.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+  <div style="background:#fff; width:90%; max-width:400px; border-radius:16px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-weight:800; color:var(--text-dark);">User Profile</h3>
+      <button id="close-profile-modal" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+    </div>
+    <div style="padding:2rem; text-align:center;">
+      <div style="position:relative; width:120px; height:120px; border-radius:50%; background:var(--orange-500); color:#fff; font-size:3rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; border:4px solid var(--orange-100); overflow:hidden;">
+        {% if user.profile_picture %}
+          <img src="{{ user.profile_picture.url }}" alt="Profile" style="width:100%; height:100%; object-fit:cover; object-position: top;">
+        {% else %}
+          <span>{{ user.get_display_name|first|upper }}</span>
+        {% endif %}
+      </div>
+      <h2 style="margin:0 0 0.5rem 0; font-size:1.4rem; font-weight:800; color:var(--text-dark); line-height: 1.2;">{{ user.get_display_name }}</h2>
+      {% if user.role == 'DEAN_RI' %}
+      <p style="margin:0 0 0.25rem 0; font-size:1.05rem; color:var(--mcet-brown); font-weight:800; line-height: 1.2;">Dean R & I</p>
+      <p style="margin:0 0 0.75rem 0; font-size:0.9rem; color:var(--text-muted); font-weight:600; line-height: 1.2;">{% if user.cadre %}{{ user.cadre }}{% else %}Professor{% endif %} - {{ user.department }}</p>
+      {% elif user.role != 'IQAC' %}
+      <p style="margin:0 0 0.75rem 0; font-size:0.95rem; color:var(--text-muted); font-weight:600; line-height: 1.4;">{% if user.cadre %}{{ user.cadre }}{% else %}Cadre Not Set{% endif %} | {{ user.department }}</p>
+      {% endif %}
+      {% if user.role == 'FACULTY' or user.role == 'HOD' %}
+      <div style="display:inline-block; background:var(--orange-100); color:var(--orange-500); padding:0.4rem 1rem; border-radius:100px; font-weight:800; font-size:1.1rem; margin-top:0.25rem;">
+        <i class="fas fa-gem me-1" style="color: #e8420a; font-size: 0.9em; vertical-align: middle;"></i>{{ user.get_total_points|floatformat:1 }}
+      </div>
+      {% endif %}
+      
+      <div style="margin-top:2rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <button id="btn-change-photo" class="btn btn-outline" style="width:100%; justify-content:center;">
+          <i class="fas fa-camera"></i> Change Photo
+        </button>
+        <button id="btn-toggle-password" class="btn btn-outline" style="width:100%; justify-content:center; border-color: #cbd5e1; color: #475569;">
+          <i class="fas fa-key"></i> Change Password
+        </button>
+      </div>
+
+      <div id="change-password-box" style="display:none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; text-align: left;">
+        <form action="{% url 'change_password' %}" method="POST">
+          {% csrf_token %}
+          <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">New Password</label>
+            <input type="password" name="new_password" required class="form-control" style="margin-top: 0.25rem; border-radius: 8px; font-size: 0.9rem; padding: 0.6rem;">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; background: #0f172a; border-color: #0f172a; border-radius: 8px; font-weight: 700; padding: 0.6rem;">
+            Update Password
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ request.csp_nonce }}" src="{% static 'js/main.js' %}?v=3.0"></script>
+<script nonce="{{ request.csp_nonce }}">
+  // All event listeners for base.html elements
+  document.addEventListener('DOMContentLoaded', function() {
+    // Modal controls
+    const profileModal = document.getElementById('profileModal');
+    const pointsModal = document.getElementById('pointsMatrixModal');
+    
+    const openProfile = document.getElementById('topbar-avatar');
+    if (openProfile) openProfile.addEventListener('click', () => { if(profileModal) profileModal.style.display = 'flex'; });
+    
+    const closeProfile = document.getElementById('close-profile-modal');
+    if (closeProfile) closeProfile.addEventListener('click', () => { if(profileModal) profileModal.style.display = 'none'; });
+    
+    const openPoints = document.getElementById('sidebar-points-matrix');
+    if (openPoints) openPoints.addEventListener('click', () => { if(pointsModal) pointsModal.style.display = 'flex'; });
+    
+    const closePoints = document.getElementById('close-points-matrix');
+    if (closePoints) closePoints.addEventListener('click', () => { if(pointsModal) pointsModal.style.display = 'none'; });
+
+    const toggleMetrics = document.getElementById('sidebar-toggle-metrics');
+    if (toggleMetrics) toggleMetrics.addEventListener('click', () => { if(window.toggleMetrics) window.toggleMetrics(); });
+
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) btnLogout.addEventListener('click', () => {
+      if (confirm("Are you sure you want to logout?")) window.location.href = "{% url 'logout' %}";
+    });
+
+    const btnChangePhoto = document.getElementById('btn-change-photo');
+    if (btnChangePhoto) btnChangePhoto.addEventListener('click', () => {
+      document.getElementById('topbar-pic-input').click();
+    });
+
+    const picInput = document.getElementById('topbar-pic-input');
+    if (picInput) picInput.addEventListener('change', () => {
+      document.getElementById('topbar-upload-form').submit();
+    });
+
+    const btnTogglePassword = document.getElementById('btn-toggle-password');
+    if (btnTogglePassword) btnTogglePassword.addEventListener('click', toggleChangePasswordBox);
+
+    // Mobile sidebar toggle
+    const hamburger = document.getElementById('sidebar-hamburger');
+    const overlay = document.getElementById('sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar');
+    function openSidebar() {
+      if (sidebar) sidebar.classList.add('open');
+      if (overlay) overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      if (sidebar) sidebar.classList.remove('open');
+      if (overlay) overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+    if (hamburger) hamburger.addEventListener('click', openSidebar);
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+    // Close sidebar when a nav link is clicked on mobile
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', () => { if (window.innerWidth <= 900) closeSidebar(); });
+    });
+  });
+
+  // Safe global delegator (No eval used)
+  document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-click]');
+    if (!el) return;
+    const action = el.getAttribute('data-click');
+    const arg = el.getAttribute('data-arg');
+    
+    if (typeof window[action] === 'function') {
+      window[action].call(el, arg || e);
+    } else if (action.includes('.')) {
+      const parts = action.split('.');
+      let fn = window;
+      for (const p of parts) { fn = fn[p]; if (!fn) break; }
+      if (typeof fn === 'function') fn.call(el, arg || e);
+    }
+  });
+
+  document.addEventListener('change', function(e) {
+    const el = e.target.closest('[data-change]');
+    if (!el) return;
+    const action = el.getAttribute('data-change');
+    if (typeof window[action] === 'function') window[action].call(el, e);
+  });
+
+  function toggleChangePasswordBox() {
+    const box = document.getElementById('change-password-box');
+    if (box) {
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      if (box.style.display === 'block') {
+         box.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }
+  }
+
+  function updateTimer() {
+    const timeEl = document.getElementById('running-time');
+    if (timeEl) {
+      timeEl.textContent = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+  }
+  setInterval(updateTimer, 1000);
+  updateTimer();
+
+  // Prevent Right Click
+  document.addEventListener('contextmenu', event => event.preventDefault());
+
+  // Prevent Navigation Back to this page securely
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (typeof window.performance != "undefined" && window.performance.navigation.type === 2)) {
+      window.location.reload();
+    }
+  });
+
+  history.pushState(null, null, location.href);
+  window.onpopstate = function () {
+    history.go(1);
+  };
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

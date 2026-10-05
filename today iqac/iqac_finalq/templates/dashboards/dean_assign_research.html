@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Assign Faculty Research Work — MCET{% endblock %}
+{% block topbar_title %}Assign Faculty Research Work{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 2rem;">
+    <div>
+        <div class="breadcrumb">Oversight / <span>Dean R&D</span></div>
+        <h1>Assign Department Research Targets</h1>
+        <p>Set specific research work fields and publication targets for entire departments.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto; border-top: 5px solid var(--blue-500);">
+    <div class="card-header">
+        <h3 class="card-title">Institutional Assignment Form</h3>
+        <p class="card-subtitle">Select department and specify the research count</p>
+    </div>
+    <form action="" method="POST" style="padding: 2rem;">
+        {% csrf_token %}
+        <div class="form-group mb-4">
+            <label style="font-weight:700; color:var(--text-dark); margin-bottom:0.5rem; display:block;">Target Department</label>
+            <select name="dept_code" class="form-control" required style="height: 45px; border-radius: 8px;">
+                <option value="">-- Select Department --</option>
+                {% for dcode, dname in departments %}
+                <option value="{{ dcode }}">{{ dname }} ({{ dcode }})</option>
+                {% endfor %}
+            </select>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">Assignment will apply to the institutional metrics for the selected department.</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+                <label style="font-weight:700; color:var(--text-dark); margin-bottom:0.5rem; display:block;">Academic Year</label>
+                <select name="year" class="form-control" required style="height: 45px; border-radius: 8px;">
+                    <option value="2025-2026">2025-2026</option>
+                    <option value="2024-25">2024-25</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="font-weight:700; color:var(--text-dark); margin-bottom:0.5rem; display:block;">Target Count</label>
+                <input type="number" name="count" class="form-control" placeholder="e.g. 2" required style="height: 45px; border-radius: 8px;">
+            </div>
+        </div>
+
+        <div class="form-group mb-4">
+            <label style="font-weight:700; color:var(--text-dark); margin-bottom:0.5rem; display:block;">Research Work Field</label>
+            <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; max-height: 300px; overflow-y: auto; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+                {% for sheet in research_sheets %}
+                <label style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; background:#fff; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                    <input type="radio" name="sheet" value="{{ sheet }}" required>
+                    <span>{{ sheet }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary" style="width:100%; height: 50px; font-weight:800; font-size:1.1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <i class="fas fa-check-circle me-2"></i> Update Department Assignment
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+/* Hover effect for radio labels */
+label:has(input[type="radio"]:checked) {
+    border-color: var(--blue-500) !important;
+    background: var(--blue-50) !important;
+    color: var(--blue-600) !important;
+    font-weight: 700;
+}
+</style>
+{% endblock %}

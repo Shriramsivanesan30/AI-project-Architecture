@@ -1,0 +1,591 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load activity_tags %}
+{% block title %}RI 600 Monthly Research Progress Connect — MCET{% endblock %}
+{% block topbar_title %}RI 600 — MRPC Report{% endblock %}
+
+{% block topbar_actions %}
+<form method="GET" action="{% url 'mrpc_report' %}" style="display:inline-flex; align-items:center; gap:0.5rem;">
+  <select name="year" onchange="this.form.submit()" class="form-control" style="min-width:130px; font-size:0.85rem; padding:0.4rem 0.8rem; border-radius:8px; border:1.5px solid #e2e8f0; font-weight:600; cursor:pointer;">
+    {% for yr in academic_years %}
+    <option value="{{ yr }}" {% if yr == academic_year %}selected{% endif %}>{{ yr }}</option>
+    {% endfor %}
+  </select>
+</form>
+<button onclick="window.print()" class="btn btn-outline btn-sm"><i class="fas fa-print"></i> Print Report</button>
+<a href="{% url 'submit_activity' %}?cat=Research" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Research Submission</a>
+{% endblock %}
+
+{% block content %}
+<div class="mrpc-container">
+    
+    <!-- Header echoing the official format -->
+    <div class="mrpc-official-header">
+        <h2>Dr. Mahalingam College of Engineering and Technology</h2>
+        <h3>Office of Dean - Research and Innovation</h3>
+        <h1>RI 600 - Monthly Research Progress Connect</h1>
+        <p class="mrpc-period">Academic Year: {{ academic_year }}</p>
+        <div class="mrpc-year-badge">Calendar Year: {% now "Y" %}</div>
+    </div>
+
+    <!-- Faculty Context Info -->
+    <div class="faculty-context-card">
+        <div class="faculty-info-grid">
+            <div class="info-item">
+                <span class="label">Faculty Name:</span>
+                <span class="value">{{ target_user.get_display_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Staff ID:</span>
+                <span class="value">{{ target_user.username }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Department:</span>
+                <span class="value">{{ target_user.department }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Designation:</span>
+                <span class="value">{{ target_user.cadre|default:"Faculty" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics Row -->
+    <div class="summary-stats-grid">
+        <div class="stat-card blue">
+            <div class="stat-count">{{ summary.published }}</div>
+            <div class="stat-label">Published (1.1)</div>
+        </div>
+        <div class="stat-card orange">
+            <div class="stat-count">{{ summary.submitted }}</div>
+            <div class="stat-label">Submitted (1.2)</div>
+        </div>
+        <div class="stat-card amber">
+            <div class="stat-count">{{ summary.preparation }}</div>
+            <div class="stat-label">Preparation (1.3)</div>
+        </div>
+        <div class="stat-card teal">
+            <div class="stat-count">{{ summary.ipr }}</div>
+            <div class="stat-label">IPR Details (2)</div>
+        </div>
+        <div class="stat-card indigo">
+            <div class="stat-count">{{ summary.funding }}</div>
+            <div class="stat-label">Funding (3.1)</div>
+        </div>
+        <div class="stat-card rose">
+            <div class="stat-count">{{ summary.consultancy }}</div>
+            <div class="stat-label">Consultancy (3.2)</div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="mrpc-tabs">
+        <button class="tab-btn active" onclick="showTab('tab-published')">1.1 Published</button>
+        <button class="tab-btn" onclick="showTab('tab-submitted')">1.2 Submitted</button>
+        <button class="tab-btn" onclick="showTab('tab-prep')">1.3 Preparation</button>
+        <button class="tab-btn" onclick="showTab('tab-ipr')">2. IPR</button>
+        <button class="tab-btn" onclick="showTab('tab-funding')">3. Funding & Consultancy</button>
+        <button class="tab-btn" onclick="showTab('tab-pro')">4. PRO 600</button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="tab-content active" id="tab-published">
+        <h3 class="section-title">Indexed Articles Publication Details (1.1)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Type</th>
+                        <th>Author(s)</th>
+                        <th>Title of the Paper</th>
+                        <th>Journal/Book/Conference Name</th>
+                        <th>Publisher</th>
+                        <th>Vol/Issue/Page</th>
+                        <th>Month & Year</th>
+                        <th>DOI</th>
+                        <th>Indexing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in published %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_type|default:"Journal" }}</td>
+                        <td class="mcet-authors">{{ act.m_author }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_venue }}</td>
+                        <td>{{ act.m_publisher|default:"—" }}</td>
+                        <td>{{ act.m_vol|default:"—" }} / {{ act.m_pages|default:"—" }}</td>
+                        <td>{{ act.m_date|default:act.academic_year }}</td>
+                        <td><small>{{ act.m_doi|default:"—" }}</small></td>
+                        <td><span class="badge badge-scopus pill">{{ act.m_indexing }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="10" class="empty-row">No published indexed articles found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-submitted">
+        <h3 class="section-title">Indexed Articles Submission Details (1.2)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Type</th>
+                        <th>Authors</th>
+                        <th>Title of Paper</th>
+                        <th>Journal/Conf Name</th>
+                        <th>Submission ID</th>
+                        <th>Week/Month</th>
+                        <th>Status</th>
+                        <th>Indexing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in submitted %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_type }}</td>
+                        <td class="mcet-authors">{{ act.m_author }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_venue }}</td>
+                        <td>{{ act.m_id }}</td>
+                        <td>{{ act.m_date }}</td>
+                        <td><span class="badge badge-warning">{{ act.m_status }}</span></td>
+                        <td><span class="badge badge-primary">{{ act.m_indexing }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="empty-row">No submission details recorded.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-prep">
+        <h3 class="section-title">Articles Under Preparation Details (1.3)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Type</th>
+                        <th>Authors</th>
+                        <th>Title of Paper</th>
+                        <th>Journal/Conf Name</th>
+                        <th>Tentative Date</th>
+                        <th>Status</th>
+                        <th>Completion %</th>
+                        <th>Indexing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in preparation %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_type }}</td>
+                        <td class="mcet-authors">{{ act.m_author }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_venue }}</td>
+                        <td>{{ act.m_date }}</td>
+                        <td>{{ act.m_status }}</td>
+                        <td>
+                            <div class="progress-wrap" style="display:flex; align-items:center; gap:8px;">
+                                <div class="progress-bar-bg" style="flex:1; height:8px; background:#eee; border-radius:4px;">
+                                    <div class="progress-bar" style="width:{{ act.m_pct }}%; height:100%; background:#f59e0b; border-radius:4px;"></div>
+                                </div>
+                                <span style="font-size:0.8rem; font-weight:700;">{{ act.m_pct }}%</span>
+                            </div>
+                        </td>
+                        <td>{{ act.m_indexing }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="empty-row">No articles under preparation recorded.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-ipr">
+        <h3 class="section-title">IPR Details - Published/Granted (2.1)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>App Number</th>
+                        <th>Type</th>
+                        <th>Applicant</th>
+                        <th>Inventors</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in ipr_pub %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_id|default:"—" }}</td>
+                        <td>{{ act.m_type|default:"—"|capfirst }}</td>
+                        <td>{{ act.m_applicant|default:"MCET" }}</td>
+                        <td>{{ act.m_inventors|default:"—" }}</td>
+                        <td><strong>{{ act.m_title|default:"—" }}</strong></td>
+                        <td><span class="badge badge-success">{{ act.m_status|default:"Approved" }}</span></td>
+                        <td>{{ act.m_date|default:act.academic_year }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="empty-row">No published/granted patents found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h3 class="section-title" style="margin-top:2rem;">IPR Details - Under Preparation (2.2)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Applicant</th>
+                        <th>Inventors</th>
+                        <th>Tentative Title</th>
+                        <th>Status</th>
+                        <th>Completion %</th>
+                        <th>Tentative Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in ipr_prep %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_applicant }}</td>
+                        <td class="mcet-authors">{{ act.m_inventors }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_status }}</td>
+                        <td>{{ act.m_pct }}%</td>
+                        <td>{{ act.m_date }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="empty-row">No IPR under preparation found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-funding">
+        <h3 class="section-title">Funded Proposal Details (3.1)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Agency</th>
+                        <th>Scheme</th>
+                        <th>File No</th>
+                        <th>Title</th>
+                        <th>Investigators</th>
+                        <th>Amount (Rs)</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in funding_sanc %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_venue }}</td>
+                        <td>{{ act.m_type }}</td>
+                        <td>{{ act.m_id }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_investigators }}</td>
+                        <td>{{ act.m_amount }} L</td>
+                        <td>{{ act.m_date }}</td>
+                        <td><span class="badge badge-success">Sanctioned</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for act in funding_sub %}
+                    <tr>
+                        <td>{{ forloop.counter|add:funding_sanc.count }}</td>
+                        <td>{{ act.m_venue }}</td>
+                        <td>{{ act.m_type }}</td>
+                        <td>{{ act.m_id }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_investigators }}</td>
+                        <td>{{ act.m_amount }} L</td>
+                        <td>{{ act.m_date }}</td>
+                        <td><span class="badge badge-warning">{{ act.m_status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not funding_sanc and not funding_sub %}
+                    <tr><td colspan="9" class="empty-row">No funding details recorded.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <h3 class="section-title" style="margin-top:2rem;">Consultancy Details (3.2)</h3>
+        <div class="table-responsive">
+            <table class="mrpc-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Client/Agency</th>
+                        <th>Project Name</th>
+                        <th>Investigator(s)</th>
+                        <th>Exp/Actual Date</th>
+                        <th>Revenue (Lakhs)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in consultancy_sanc %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ act.m_applicant }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_investigators }}</td>
+                        <td>{{ act.m_date }}</td>
+                        <td>{{ act.m_amount }} L</td>
+                        <td><span class="badge badge-success">Ongoing/Done</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for act in consultancy_plan %}
+                    <tr>
+                        <td>{{ forloop.counter|add:consultancy_sanc.count }}</td>
+                        <td>{{ act.m_applicant }}</td>
+                        <td><strong>{{ act.m_title }}</strong></td>
+                        <td>{{ act.m_investigators }}</td>
+                        <td>{{ act.m_date }}</td>
+                        <td>{{ act.m_amount }} L</td>
+                        <td><span class="badge badge-warning">Planning</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not consultancy_sanc and not consultancy_plan %}
+                    <tr><td colspan="7" class="empty-row">No consultancy details recorded.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-pro">
+        <h3 class="section-title">Student Project Tracking (4. PRO 600)</h3>
+        
+        {% for batch_name, projects in student_batches.items %}
+        <div class="batch-section">
+            <div class="batch-label">{{ batch_name }}:</div>
+            <div class="table-responsive">
+                <table class="mrpc-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Name and Roll No. of Students</th>
+                            <th style="width: 35%;">Project Title</th>
+                            <th style="width: 20%;">Committed outcome (Conference / Patent / Journal)</th>
+                            <th style="width: 20%;">Status*</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in projects %}
+                        <tr>
+                            <td>{{ p.m_students|linebreaksbr }}</td>
+                            <td><strong>{{ p.m_title|default:"Title Not Set" }}</strong></td>
+                            <td>{{ p.m_outcome|default:"Outcome Not Set" }}</td>
+                            <td><span class="badge badge-warning">{{ p.m_status }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="empty-row" style="padding: 1rem !important;">No projects registered for {{ batch_name }}.</td>
+                        </tr>
+                        {% endfor %}
+                </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="mrpc-footer-note" style="margin-top: 2rem; background: var(--mrpc-gold); color: var(--mcet-brown); padding: 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700;">
+            <p style="margin: 0;">* If i) Published in Journal/Conference — Update in 1.1 Published sheet</p>
+            <p style="margin: 0;">ii) Submitted in Journal/Conference — Update in 1.2 Submitted sheet</p>
+            <p style="margin: 0;">iii) Under Preparation in Journal/Conference — Update in 1.3 Under Preparation sheet</p>
+            <p style="margin: 0;">iv) Published/Granted/Under Preparation in IPR — Update in 2.IPR</p>
+        </div>
+    </div>
+
+</div>
+
+<style>
+:root {
+    --mrpc-gold: #f59e0b;
+    --mrpc-blue: #1e3a8a;
+    --mcet-brown: #78350f;
+}
+
+.mrpc-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+.mrpc-official-header {
+    text-align: center;
+    border-bottom: 2px double #e5e7eb;
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.mrpc-official-header h2 { font-size: 1.3rem; color: var(--mrpc-blue); margin: 0; text-transform: uppercase; font-weight: 800; }
+.mrpc-official-header h3 { font-size: 1.05rem; color: var(--text-muted); margin: 0.2rem 0; font-weight: 600; }
+.mrpc-official-header h1 { font-size: 1.6rem; color: var(--mcet-brown); margin: 0.8rem 0; font-weight: 900; }
+.mrpc-period { color: #dc2626; font-weight: 700; font-size: 0.95rem; margin: 0.5rem 0; }
+.mrpc-year-badge { display: inline-block; border: 1.5px solid #16a34a; padding: 0.3rem 1.5rem; color: #15803d; font-weight: 700; border-radius: 4px; }
+
+.batch-section { margin-bottom: 2rem; }
+.batch-label { 
+    background: #000; color: #f59e0b; display: inline-block; 
+    padding: 0.2rem 1rem; font-weight: 900; font-size: 0.9rem; 
+    margin-bottom: 0.5rem; border-radius: 2px;
+}
+
+.faculty-context-card {
+    background: #fafafa;
+    border-left: 5px solid var(--mcet-brown);
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.faculty-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.info-item .label { display: block; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+.info-item .value { font-size: 1rem; font-weight: 800; color: var(--text-main); }
+
+.summary-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+}
+
+.stat-card {
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.stat-count { font-size: 1.7rem; font-weight: 900; line-height: 1.2; }
+.stat-label { font-size: 0.72rem; font-weight: 700; opacity: 0.8; }
+
+.blue { background: #eff6ff; color: #1e40af; }
+.orange { background: #fff7ed; color: #9a3412; }
+.amber { background: #fffbeb; color: #92400e; }
+.teal { background: #f0fdfa; color: #0f766e; }
+.indigo { background: #eef2ff; color: #3730a3; }
+.rose { background: #fff1f2; color: #9f1239; }
+
+.mrpc-tabs {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.5rem;
+    border-bottom: 2px solid #f3f4f6;
+    margin-bottom: 2rem;
+    padding-bottom: 2px;
+}
+
+.tab-btn {
+    padding: 0.8rem 1.1rem;
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover { color: var(--mcet-brown); }
+.tab-btn.active { color: var(--mcet-brown); }
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--mcet-brown);
+}
+
+.tab-content { display: none; animation: fadeIn 0.4s ease; }
+.tab-content.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-title {
+    color: #dc2626;
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #fecaca;
+    padding-bottom: 0.4rem;
+}
+
+.mrpc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.mrpc-table th {
+    background: var(--mrpc-gold);
+    color: var(--mcet-brown);
+    padding: 0.7rem;
+    text-align: left;
+    font-weight: 800;
+    border: 1px solid #fff;
+}
+
+.mrpc-table td {
+    padding: 0.7rem;
+    border: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+.mcet-authors { color: #dc2626; font-weight: 600; }
+.empty-row { text-align: center; padding: 2.5rem !important; color: var(--text-muted); font-style: italic; }
+
+@media print {
+    .sidebar, .topbar, .mrpc-tabs, .btn, .topbar-actions { display: none !important; }
+    .mrpc-container { box-shadow: none; padding: 0; }
+    .tab-content { display: block !important; page-break-after: always; visibility: visible; }
+    .main-content { margin-left: 0 !important; }
+}
+</style>
+
+<script nonce="{{ request.csp_nonce }}">
+function showTab(id) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dean Research & Innovation Dashboard — MCET{% endblock %}
+{% block topbar_title %}Dean Research & Innovation Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex; gap:0.5rem;">
+    <button data-click="toggleTargetForm" class="btn btn-primary btn-sm" style="background:#e8420a; border-color:#e8420a;">
+        <i class="fas fa-bullseye"></i> Set Research Target
+    </button>
+    <a href="{% url 'switch_role' 'FACULTY' %}" class="btn btn-outline btn-sm"
+        style="border-color:var(--border); color:var(--text-muted);">
+        <i class="fas fa-user"></i> My Faculty View
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<script nonce="{{ request.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<div class="page-header"
+    style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+    <div>
+        <div class="breadcrumb">Institutional / <span>Research Oversight</span></div>
+        <h1>Dean (R&I) Overview</h1>
+        <p>Strategic coordination of research activity across all departments.</p>
+    </div>
+    <div style="margin-left: auto;">
+        <a href="{% url 'dean_mrpc_report' %}" class="btn btn-primary btn-lg"
+            style="background:var(--orange-500); border-color:var(--orange-500); padding: 0.8rem 2rem; box-shadow: 0 4px 15px rgba(232, 66, 10, 0.2);">
+            <i class="fas fa-file-pdf"></i> Generate Full MRPC Report
+        </a>
+    </div>
+</div>
+
+<!-- ── KPI Cards ── -->
+<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="kpi-card" data-filter-type="all" data-filter-label="Total Research Studies"
+        style="border-top: 4px solid #16a34a; cursor: pointer;">
+        <div class="kpi-label">Total Studies</div>
+        <div class="kpi-value" style="color: #15803d;">{{ stats.total }}</div>
+        <div class="kpi-meta" style="color: #16a34a;"><i class="fas fa-check-circle"></i> {{ stats.approved }} Approved
+        </div>
+    </div>
+    <div class="kpi-card" data-filter-type="Journal" data-filter-label="Publication Details"
+        style="border-top: 4px solid #f59e0b; cursor: pointer;">
+        <div class="kpi-label">Publications</div>
+        <div class="kpi-value" style="color: #d97706;">{{ res_cats.Journal }}</div>
+        <div class="kpi-meta">Journals, Books & Chapters</div>
+    </div>
+    <div class="kpi-card" data-filter-type="Patent" data-filter-label="IPR & Patent Details"
+        style="border-top: 4px solid #8b5cf6; cursor: pointer;">
+        <div class="kpi-label">IPR & Patents</div>
+        <div class="kpi-value" style="color: #6d28d9;">{{ res_cats.PatentIPR }}</div>
+        <div class="kpi-meta">Published & Granted</div>
+    </div>
+    <div class="kpi-card" data-filter-type="Funding" data-filter-label="External Funding & Proposals"
+        style="border-top: 4px solid #ec4899; cursor: pointer;">
+        <div class="kpi-label">External Funding</div>
+        <div class="kpi-value" style="color: #be185d;">{{ res_cats.Funding }}</div>
+        <div class="kpi-meta">Proposals & Projects</div>
+    </div>
+</div>
+
+<!-- ── Charts Row ── -->
+<div style="display:grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Dept Wise Bar Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Inter-Departmental Research Output</h3>
+            <p class="card-subtitle">Volume of research items per department</p>
+        </div>
+        <div style="padding: 1.5rem; height: 300px;">
+            <canvas id="deptChart"></canvas>
+        </div>
+    </div>
+    <!-- Category Pie Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Research Portfolio</h3>
+            <p class="card-subtitle">Breakdown by activity type</p>
+        </div>
+        <div style="padding: 1.5rem; height: 300px; display: flex; justify-content: center;">
+            <canvas id="catChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Target Form (Hidden by default) -->
+<div id="target-form" style="display:none; background:var(--bg-light); padding:1.5rem; border-radius:12px; margin-bottom:1.5rem; border:1px solid var(--border);">
+    <h4 style="margin-bottom:1rem; color:#e8420a;"><i class="fas fa-bullseye"></i> Define Department Research Target</h4>
+    <form method="POST" action="{% url 'set_department_target' %}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; align-items:end;">
+        {% csrf_token %}
+        <div>
+            <label>Department</label>
+            <select name="dept" required>
+                {% for code, name in departments %}
+                <option value="{{ code }}">{{ code }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Research Sheet</label>
+            <select name="sheet" required>
+                {% for sheet in research_sheets %}
+                <option value="{{ sheet }}">{{ sheet }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Academic Year</label>
+            <input type="text" value="{{ current_year }}" disabled style="background:var(--bg);">
+            <input type="hidden" name="year" value="{{ current_year }}">
+        </div>
+        <div>
+            <label>Target Count</label>
+            <input type="number" name="count" min="1" value="10" required style="width:100px;">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary" style="background:#e8420a; border-color:#e8420a; width:100%;">Set Target</button>
+        </div>
+    </form>
+</div>
+
+
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--text-dark); margin:0; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fas fa-university" style="color: var(--orange-500);"></i> Departmental Research Streams
+    </h3>
+</div>
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:.75rem; margin-bottom:2.5rem;">
+    {% for d in dept_stats %}
+    <a href="javascript:void(0)" 
+       class="dept-dot-card" 
+       data-dept-code="{{ d.code }}" 
+       data-dept-name="{{ d.name }}"
+       style="text-decoration:none; position:relative; background:#fff; border:1.5px solid #e2e8f0; padding:1rem .5rem; border-radius:12px; text-align:center; transition:all .2s ease; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow: var(--shadow-sm);">
+      <span class="dot-base {% if d.pending_count > 0 %}dot-alert{% else %}dot-normal{% endif %}"></span>
+      <span style="font-weight:800; font-size:1.15rem; color:var(--text-dark); margin-bottom:2px;">{{ d.code }}</span>
+      <span style="font-size:0.55rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:block; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.name }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<style>
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(234, 88, 12, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
+    }
+    .dept-dot-card:hover { transform: translateY(-3px); border-color: var(--orange-500); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+    .dept-dot-active { background: #fff7ed !important; border-color: var(--orange-500) !important; }
+    
+    .dot-base { position:absolute; top:8px; right:8px; width:12px; height:12px; border-radius:50%; border:2px solid #fff; }
+    .dot-alert { background:#ff4d00; box-shadow:0 0 12px rgba(255,77,0,0.8); animation: pulse 1.5s infinite; }
+    .dot-normal { background:#e2e8f0; }
+</style>
+
+<!-- ── Research Activities Table ── -->
+<div class="card" id="researchListingSection">
+    <div class="card-header">
+        <h3 class="card-title" id="listingTitle">Institutional Research Submissions</h3>
+        <p class="card-subtitle">Comprehensive institutional stream (Filterable by cards above)</p>
+    </div>
+    <div class="table-wrap">
+        <table id="resTable">
+            <thead>
+                <tr>
+                    <th>Department</th>
+                    <th>Faculty</th>
+                    <th>Sheet Type</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in all_research %}
+                <tr class="res-row"
+                    data-dept="{{ act.department }}"
+                    data-type="{% if 'Journal' in act.sheet_name or 'Book' in act.sheet_name or 'Conference' in act.sheet_name %}Journal{% elif 'Patent' in act.sheet_name or 'IPR' in act.sheet_name %}Patent{% elif 'Research-Funding' in act.sheet_name or 'Research Project' in act.sheet_name %}Funding{% else %}Other{% endif %}">
+                    <td><span class="badge" style="background:var(--bg-light); color:var(--text-main); border:1px solid var(--border);">{{ act.department }}</span></td>
+                    <td><strong>{{ act.faculty.get_display_name }}</strong></td>
+                    <td>{{ act.sheet_name }}</td>
+                    <td>{{ act.title|truncatechars:60|default:"Untitled Research" }}</td>
+                    <td><span class="badge badge-{{ act.status|lower }}">{{ act.get_status_icon }} {{ act.status|title }}</span></td>
+                    <td style="display: flex; gap: 0.4rem;">
+                        <a href="{% url 'activity_detail' act.id %}" class="btn btn-outline btn-sm"
+                            title="Preview Details" style="padding: 0.3rem 0.6rem;">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                         {% if act.status == 'HOD_APPROVED' %}
+                         <form method="POST" action="{% url 'approve_activity' act.id 'approve' %}" style="display:inline;">
+                             {% csrf_token %}
+                             <button type="submit" class="btn btn-primary btn-sm" title="Approve Research" style="background:#16a34a; border-color:#16a34a;">
+                                 <i class="fas fa-check"></i>
+                             </button>
+                         </form>
+                         {% endif %}
+                        <a href="{% url 'activity_detail' act.id %}?print=1" class="btn btn-outline btn-sm" title="Print Activity" style="padding: 0.3rem 0.6rem;">
+                            <i class="fas fa-print"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No research activities found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+    {{ dept_labels|json_script:"dept-labels-data" }}
+    {{ dept_counts|json_script:"dept-counts-data" }}
+    {{ dept_cat_data|json_script:"dept-cat-data" }}
+    {{ res_cats|json_script:"global-cat-data" }}
+
+<style>
+    .badge-pending {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-dean_approved {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .badge-iqac_approved {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .badge-rejected {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    /* KPI Card Enhancements */
+    .kpi-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 12px 24px rgba(232, 66, 10, 0.15);
+    }
+
+    .kpi-label {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+        font-size: 2.2rem;
+        font-weight: 900;
+        margin: 0.5rem 0;
+    }
+
+    .kpi-meta {
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ request.csp_nonce }}">
+    function toggleTargetForm() {
+        const form = document.getElementById('target-form');
+        if (form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if(form.style.display === 'block') {
+                form.scrollIntoView({behavior: 'smooth', block: 'center'});
+            }
+        }
+    }
+    // Expose to window for the delegator
+    window.toggleTargetForm = toggleTargetForm;
+
+    function filterTable(filter, label, isDept = false) {
+        const rows = document.querySelectorAll('.res-row');
+        const titleEl = document.getElementById('listingTitle');
+        const section = document.getElementById('researchListingSection');
+
+        if (titleEl) titleEl.innerText = label;
+
+        rows.forEach(row => {
+            const matchesType = !isDept && (filter === 'all' || row.dataset.type === filter);
+            const matchesDept = isDept && (filter === 'all' || row.dataset.dept === filter);
+            
+            if (matchesType || matchesDept) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (section) section.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Global Data Holders
+    const deptCatData = JSON.parse(document.getElementById('dept-cat-data').textContent || '{}');
+    const globalCatData = JSON.parse(document.getElementById('global-cat-data').textContent || '{}');
+    let catChartInstance = null;
+    let deptChartInstance = null;
+
+    function initCategoryChart(data) {
+        const catCtx = document.getElementById('catChart');
+        if (!catCtx) return;
+        if (catChartInstance) catChartInstance.destroy();
+        
+        catChartInstance = new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Journal', 'IPR', 'Conference', 'Funding', 'Consultancy'],
+                datasets: [{
+                    data: [
+                        data.Journal || 0, 
+                        data.PatentIPR || 0, 
+                        data.Conference || 0, 
+                        data.Funding || 0, 
+                        data.Consultancy || 0
+                    ],
+                    backgroundColor: ['#f59e0b', '#8b5cf6', '#3b82f6', '#ec4899', '#10b981']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: data.isGlobal ? 'Institute Portfolio' : 'Department Portfolio' }
+                }
+            }
+        });
+    }
+
+    function selectDepartment(code, name, el) {
+        const data = deptCatData[code] || { Journal:0, PatentIPR:0, Conference:0, Funding:0, Consultancy:0 };
+        initCategoryChart(data);
+        
+        // Update Bar Chart to show ONLY this department
+        const count = el.querySelector('span[style*="font-size:1.15rem"]').nextElementSibling.textContent; // Attempt to get count
+        updateBarChart(code, name);
+        
+        filterTable(code, name + " Research Stream", true);
+        document.querySelectorAll('.dept-dot-card').forEach(c => c.classList.remove('dept-dot-active'));
+        if (el) el.classList.add('dept-dot-active');
+    }
+
+    function updateBarChart(code, name) {
+        const deptCtx = document.getElementById('deptChart');
+        if (!deptCtx || !deptChartInstance) return;
+        
+        // Find the count from the original data
+        const labels = JSON.parse(document.getElementById('dept-labels-data').textContent || '[]');
+        const counts = JSON.parse(document.getElementById('dept-counts-data').textContent || '[]');
+        const idx = labels.indexOf(code);
+        const count = idx !== -1 ? counts[idx] : 0;
+
+        deptChartInstance.data.labels = [code];
+        deptChartInstance.data.datasets[0].data = [count];
+        deptChartInstance.data.datasets[0].label = `${name} Research Output`;
+        deptChartInstance.update();
+    }
+
+    function resetToGlobal() {
+        globalCatData.isGlobal = true;
+        initCategoryChart(globalCatData);
+        filterTable('all', 'Institutional Research Submissions', false);
+        document.querySelectorAll('.dept-dot-card').forEach(c => c.classList.remove('dept-dot-active'));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Category Chart
+        globalCatData.isGlobal = true;
+        initCategoryChart(globalCatData);
+
+        // 2. Bar Chart
+        const d_labels = JSON.parse(document.getElementById('dept-labels-data').textContent || '[]');
+        const d_counts = JSON.parse(document.getElementById('dept-counts-data').textContent || '[]');
+        const deptCtx = document.getElementById('deptChart');
+        if (deptCtx) {
+            deptChartInstance = new Chart(deptCtx, {
+                type: 'bar',
+                data: {
+                    labels: d_labels,
+                    datasets: [{ label: 'Research Submissions', data: d_counts, backgroundColor: 'rgba(30, 64, 175, 0.8)', borderRadius: 8 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // 3. Department Click Listeners
+        document.querySelectorAll('.dept-dot-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const code = this.getAttribute('data-dept-code');
+                const name = this.getAttribute('data-dept-name');
+                selectDepartment(code, name, this);
+            });
+        });
+
+        // 4. KPI Card Listeners
+        document.querySelectorAll('.kpi-card[data-filter-type]').forEach(card => {
+            card.addEventListener('click', function() {
+                filterTable(this.dataset.filterType, this.dataset.filterLabel, false);
+            });
+        });
+    });
+</script>
+{% endblock %}
